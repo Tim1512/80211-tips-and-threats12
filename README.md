@@ -2,9 +2,9 @@
 
 Links an code for "802.11 tips and threats" @ Defcon Moscow #dc4799
 
-## 802.11 books
+## 802.11 documents
 
-https://www.dropbox.com/sh/bqf9wv7dvsb9ya0/AABXBQ7eCgDc2LQfX0CnBn8Za?dl=0
+https://www.dropbox.com/sh/6m7811s9d9898s4/AABLj4NmBZTrUMKIwpbhucTwa?dl=0
 
 ## Atheros hamradio
 
