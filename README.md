@@ -15,8 +15,7 @@ https://github.com/0x90/wifi-scripts
 
 ## 802.11 hacking @ OS X
 ```
-ln -s 
-/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport /usr/binairport
+sudo ln -s "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport" /usr/bin/airport
 ```
 
 [Apple80211 framework analysis](http://newosxbook.com/articles/11208ellpA.html)
