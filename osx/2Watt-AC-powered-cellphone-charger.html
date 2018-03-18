@@ -1,1817 +1,1361 @@
-basestring(x)import typing
-
-from .base import BaseBot, api
-from .. import types
-from ..types import base
-from ..utils.payload import generate_payload, prepare_arg
 
 
-class Bot(BaseBot):
-    """
-    Base bot class
-    """
 
-    @property
-    async def me(self) -> types.User:
-        """
-        Alias for self.get_me() but lazy and with caching.
 
-        :return: :class:`aiogram.types.User`
-        """
-        if not hasattr(self, '_me'):
-            setattr(self, '_me', await self.get_me())
-        return getattr(self, '_me')
 
-    @me.deleter
-    def me(self):
-        """
-        Reset `me`
-        """
-        if hasattr(self, '_me'):
-            delattr(self, '_me')
 
-    async def download_file_by_id(self, file_id: base.String, destination=None,
-                                  timeout: base.Integer = 30, chunk_size: base.Integer = 65536,
-                                  seek: base.Boolean = True):
-        """
-        Download file by file_id to destination
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+  <link rel="dns-prefetch" href="https://assets-cdn.github.com">
+  <link rel="dns-prefetch" href="https://avatars0.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://avatars1.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://avatars2.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://avatars3.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://github-cloud.s3.amazonaws.com">
+  <link rel="dns-prefetch" href="https://user-images.githubusercontent.com/">
 
-        if You want to automatically create destination (:class:`io.BytesIO`) use default
-        value of destination and handle result of this method.
 
-        :param file_id: str
-        :param destination: filename or instance of :class:`io.IOBase`. For e. g. :class:`io.BytesIO`
-        :param timeout: int
-        :param chunk_size: int
-        :param seek: bool - go to start of file when downloading is finished.
-        :return: destination
-        """
-        file = await self.get_file(file_id)
-        return await self.download_file(file_path=file.file_path, destination=destination, timeout=timeout,
-                                        chunk_size=chunk_size, seek=seek)
 
-    # === Getting updates ===
-    # https://core.telegram.org/bots/api#getting-updates
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://assets-cdn.github.com/assets/frameworks-6caac13806331f9675860df98a99b39a.css" />
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://assets-cdn.github.com/assets/github-c4d5af25254cfc8bb30ae5cb6f074c97.css" />
+  
+  
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://assets-cdn.github.com/assets/site-83dc1f7ebc9c7461fe1eab799b56c4c4.css" />
+  
 
-    async def get_updates(self, offset: typing.Union[base.Integer, None] = None,
-                          limit: typing.Union[base.Integer, None] = None,
-                          timeout: typing.Union[base.Integer, None] = None,
-                          allowed_updates:
-                          typing.Union[typing.List[base.String], None] = None) -> typing.List[types.Update]:
-        """
-        Use this method to receive incoming updates using long polling (wiki).
+  <meta name="viewport" content="width=device-width">
+  
+  <title>Initial ECS setup according to current rules by OndraM · Pull Request #2 · lmc-eu/php-coding-standard · GitHub</title>
+    <meta name="description" content="This is just an initial import of rules currently defined in lmc/jobs-meta for both php-cs-fixer and PHP_CodeSniffer into Symfon-DI-like yml format which is used by (alpha) version 4 of Symplify/EasyCodingStandard.
+The plan is now to make use of lmc/jobs-meta for sharing codestyle rules obsolete and switch to ECS instead. As the integration is pretty straightforward, this will make reuse of the codestyle quite easy. ECS support excluding files and/or specific fixers, so it will also be easy to adjust the configuration for edgecases, but still benefit from the standard, well known and unified configuration format.
+Codebases currenly using rulesets from lmc/jobs-meta should be 99 % compatible with this configuration - attached configuration was tested on few of them (I tried eg. Jobs, ApiBundle, Consentor, Footer API, ApplyFeedback, CompanyProfiles, matej-client-php, Steward...), so this set of rules is already battle-tested.
+However what needs to be resolved:
 
-        Notes
-        1. This method will not work if an outgoing webhook is set up.
-        2. In order to avoid getting duplicate updates, recalculate offset after each server response.
+Will we sort and/or structure the rules anyhow? Until now we had php-cs-fixer rules sorted alphabetically according to their name (like &quot;array_syntax&quot;, &quot;phpdoc_no_empty_return&quot; etc.), which is the current order in easy-coding-standard.yml in this PR. But it does not make any sense now, and will be hard to maintain. Maybe we can sort them now by their FQCN. Yes or no? (Or null? 🙃 )
+Should the phpcs/PHP_CodeSniffer rules be separated in the configuration like now, or we will simply sort all the services alphabetically by their FQCN?
+Do we want to use comments explaining each of the rule? (We had them in phpcs-ruleset.xml of lmc/jobs-meta, but not in php-cs-fixer-ruleset.php - so for not I kept them in the PHP_CodeSniffer section, until we decide if we want to have them or not).
+PHP 7-specific rules were not yet part of jobs-meta so they are not part of this (yet). But I will add them directly in the main file - if there is anyone still on PHP 5.6, they can simply skip them. Ok?
 
-        Source: https://core.telegram.org/bots/api#getupdates
+Your thoughts?">
+  <link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="GitHub">
+  <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
+  <meta property="fb:app_id" content="1401488693436528">
 
-        :param offset: Identifier of the first update to be returned.
-        :type offset: :obj:`typing.Union[base.Integer, None]`
-        :param limit: Limits the number of updates to be retrieved.
-        :type limit: :obj:`typing.Union[base.Integer, None]`
-        :param timeout: Timeout in seconds for long polling.
-        :type timeout: :obj:`typing.Union[base.Integer, None]`
-        :param allowed_updates: List the types of updates you want your bot to receive.
-        :type allowed_updates: :obj:`typing.Union[typing.List[base.String], None]`
-        :return: An Array of Update objects is returned.
-        :rtype: :obj:`typing.List[types.Update]`
-        """
-        allowed_updates = prepare_arg(allowed_updates)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_UPDATES, payload)
+    
+    <meta property="og:image" content="https://avatars2.githubusercontent.com/u/793041?s=400&amp;v=4" /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="Initial ECS setup according to current rules by OndraM · Pull Request #2 · lmc-eu/php-coding-standard" /><meta property="og:url" content="https://github.com/lmc-eu/php-coding-standard/pull/2" /><meta property="og:description" content="This is just an initial import of rules currently defined in lmc/jobs-meta for both php-cs-fixer and PHP_CodeSniffer into Symfon-DI-like yml format which is used by (alpha) version 4 of Symplify/Ea..." />
 
-        return [types.Update(**update) for update in result]
+  <link rel="assets" href="https://assets-cdn.github.com/">
+  
+  <meta name="pjax-timeout" content="1000">
+  
+  <meta name="request-id" content="B377:55A7:BF9358:176D919:5AAD884A" data-pjax-transient>
+  
 
-    async def set_webhook(self, url: base.String,
-                          certificate: typing.Union[base.InputFile, None] = None,
-                          max_connections: typing.Union[base.Integer, None] = None,
-                          allowed_updates: typing.Union[typing.List[base.String], None] = None) -> base.Boolean:
-        """
-        Use this method to specify a url and receive incoming updates via an outgoing webhook.
-        Whenever there is an update for the bot, we will send an HTTPS POST request to the specified url,
-        containing a JSON-serialized Update. In case of an unsuccessful request,
-        we will give up after a reasonable amount of attempts.
+  <meta name="selected-link" value="repo_pulls" data-pjax-transient>
 
-        Source: https://core.telegram.org/bots/api#setwebhook
+    <meta name="google-site-verification" content="KT5gs8h0wvaagLKAVWq8bbeNwnZZK1r1XQysX3xurLU">
+  <meta name="google-site-verification" content="ZzhVyEFwb7w3e0-uOTltm8Jsck2F5StVihD0exw2fsA">
+  <meta name="google-site-verification" content="GXs5KoUUkNCoaAZn7wPN-t01Pywp9M3sEjnt_3_ZWPc">
+    <meta name="google-analytics" content="UA-3769691-2">
 
-        :param url: HTTPS url to send updates to. Use an empty string to remove webhook integration
-        :type url: :obj:`base.String`
-        :param certificate: Upload your public key certificate so that the root certificate in use can be checked. 
-        :type certificate: :obj:`typing.Union[base.InputFile, None]`
-        :param max_connections: Maximum allowed number of simultaneous HTTPS connections to the webhook 
-            for update delivery, 1-100.
-        :type max_connections: :obj:`typing.Union[base.Integer, None]`
-        :param allowed_updates: List the types of updates you want your bot to receive.
-        :type allowed_updates: :obj:`typing.Union[typing.List[base.String], None]`
-        :return: Returns true.
-        :rtype: :obj:`base.Boolean`
-        """
-        allowed_updates = prepare_arg(allowed_updates)
-        payload = generate_payload(**locals(), exclude=['certificate'])
-        result = await self.send_file('certificate', api.Methods.SET_WEBHOOK, certificate, payload)
+<meta name="octolytics-host" content="collector.githubapp.com" /><meta name="octolytics-app-id" content="github" /><meta name="octolytics-event-url" content="https://collector.githubapp.com/github-external/browser_event" /><meta name="octolytics-dimension-request_id" content="B377:55A7:BF9358:176D919:5AAD884A" /><meta name="octolytics-dimension-region_edge" content="iad" /><meta name="octolytics-dimension-region_render" content="iad" />
+<meta name="hydro-events-url" content="https://github.com/hydro_browser_events" />
+<meta name="analytics-location" content="/&lt;user-name&gt;/&lt;repo-name&gt;/pull_requests/show" data-pjax-transient="true" />
 
-        return result
 
-    async def delete_webhook(self) -> base.Boolean:
-        """
-        Use this method to remove webhook integration if you decide to switch back to getUpdates.
-        Returns True on success. Requires no parameters.
 
-        Source: https://core.telegram.org/bots/api#deletewebhook
 
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.DELETE_WEBHOOK, payload)
+  <meta class="js-ga-set" name="dimension1" content="Logged Out">
 
-        return result
 
-    async def get_webhook_info(self) -> types.WebhookInfo:
-        """
-        Use this method to get current webhook status. Requires no parameters.
+  
 
-        If the bot is using getUpdates, will return an object with the url field empty.
+      <meta name="hostname" content="github.com">
+    <meta name="user-login" content="">
 
-        Source: https://core.telegram.org/bots/api#getwebhookinfo
+      <meta name="expected-hostname" content="github.com">
+    <meta name="js-proxy-site-detection-payload" content="NWZhNTgwOGY4ZmM2MTI5MjA5NzBhNzg2YzhhOGJmMTk0YWMwNWVlYmMwOGYzNTZlMjIwZTllNDU4YWM1NjFhNHx7InJlbW90ZV9hZGRyZXNzIjoiMTcyLjU2LjEyLjE4MCIsInJlcXVlc3RfaWQiOiJCMzc3OjU1QTc6QkY5MzU4OjE3NkQ5MTk6NUFBRDg4NEEiLCJ0aW1lc3RhbXAiOjE1MjEzMjIwNTksImhvc3QiOiJnaXRodWIuY29tIn0=">
 
-        :return: On success, returns a WebhookInfo object.
-        :rtype: :obj:`types.WebhookInfo`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_WEBHOOK_INFO, payload)
+    <meta name="enabled-features" content="UNIVERSE_BANNER,FREE_TRIALS,MARKETPLACE_INSIGHTS,MARKETPLACE_INSIGHTS_CONVERSION_PERCENTAGES">
 
-        return types.WebhookInfo(**result)
+  <meta name="html-safe-nonce" content="454a2ffd3d0b9f80ca7523febd54d38ad673fb2c">
 
-    # === Base methods ===
-    # https://core.telegram.org/bots/api#available-methods
+  <meta http-equiv="x-pjax-version" content="18304c067da449364c1ab8439d250439">
+  
 
-    async def get_me(self) -> types.User:
-        """
-        A simple method for testing your bot's auth token. Requires no parameters.
+    <style type="text/css" media="screen" id="issue-labels-style">
+  span.labelstyle-d73a4a, .linked-labelstyle-d73a4a {  background-color: #d73a4a !important;  color: #ffffff !important;}.labelstyle-d73a4a.selected {  background-color: #d73a4a !important;  color: #ffffff !important;}.label-select-menu .labelstyle-d73a4a.selected {  background: rgba(215, 58, 74, 0.12) !important;  color: #992934 !important;}
 
-        Source: https://core.telegram.org/bots/api#getme
+span.labelstyle-cfd3d7, .linked-labelstyle-cfd3d7 {  background-color: #cfd3d7 !important;  color: #000000 !important;}.labelstyle-cfd3d7.selected {  background-color: #cfd3d7 !important;  color: #000000 !important;}.label-select-menu .labelstyle-cfd3d7.selected {  background: rgba(207, 211, 215, 0.12) !important;  color: #939699 !important;}
 
-        :return: Returns basic information about the bot in form of a User object.
-        :rtype: :obj:`types.User`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_ME, payload)
+span.labelstyle-a2eeef, .linked-labelstyle-a2eeef {  background-color: #a2eeef !important;  color: #000000 !important;}.labelstyle-a2eeef.selected {  background-color: #a2eeef !important;  color: #000000 !important;}.label-select-menu .labelstyle-a2eeef.selected {  background: rgba(162, 238, 239, 0.12) !important;  color: #679899 !important;}
 
-        return types.User(**result)
+span.labelstyle-7057ff, .linked-labelstyle-7057ff {  background-color: #7057ff !important;  color: #ffffff !important;}.labelstyle-7057ff.selected {  background-color: #7057ff !important;  color: #ffffff !important;}.label-select-menu .labelstyle-7057ff.selected {  background: rgba(112, 87, 255, 0.12) !important;  color: #433499 !important;}
 
-    async def send_message(self, chat_id: typing.Union[base.Integer, base.String], text: base.String,
-                           parse_mode: typing.Union[base.String, None] = None,
-                           disable_web_page_preview: typing.Union[base.Boolean, None] = None,
-                           disable_notification: typing.Union[base.Boolean, None] = None,
-                           reply_to_message_id: typing.Union[base.Integer, None] = None,
-                           reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                      types.ReplyKeyboardMarkup,
-                                                      types.ReplyKeyboardRemove,
-                                                      types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send text messages.
+span.labelstyle-008672, .linked-labelstyle-008672 {  background-color: #008672 !important;  color: #ffffff !important;}.labelstyle-008672.selected {  background-color: #008672 !important;  color: #ffffff !important;}.label-select-menu .labelstyle-008672.selected {  background: rgba(0, 134, 114, 0.12) !important;  color: #009982 !important;}
 
-        Source: https://core.telegram.org/bots/api#sendmessage
+span.labelstyle-e4e669, .linked-labelstyle-e4e669 {  background-color: #e4e669 !important;  color: #000000 !important;}.labelstyle-e4e669.selected {  background-color: #e4e669 !important;  color: #000000 !important;}.label-select-menu .labelstyle-e4e669.selected {  background: rgba(228, 230, 105, 0.12) !important;  color: #979945 !important;}
 
-        :param chat_id: Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param text: Text of the message to be sent
-        :type text: :obj:`base.String`
-        :param parse_mode: Send Markdown or HTML, if you want Telegram apps to show bold, italic,
-            fixed-width text or inline URLs in your bot's message.
-        :type parse_mode: :obj:`typing.Union[base.String, None]`
-        :param disable_web_page_preview: Disables link previews for links in this message
-        :type disable_web_page_preview: :obj:`typing.Union[base.Boolean, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup,
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        if self.parse_mode:
-            payload.setdefault('parse_mode', self.parse_mode)
+span.labelstyle-d876e3, .linked-labelstyle-d876e3 {  background-color: #d876e3 !important;  color: #000000 !important;}.labelstyle-d876e3.selected {  background-color: #d876e3 !important;  color: #000000 !important;}.label-select-menu .labelstyle-d876e3.selected {  background: rgba(216, 118, 227, 0.12) !important;  color: #914f98 !important;}
 
-        result = await self.request(api.Methods.SEND_MESSAGE, payload)
+span.labelstyle-ffffff, .linked-labelstyle-ffffff {  background-color: #ffffff !important;  color: #000000 !important;}.labelstyle-ffffff.selected {  background-color: #ffffff !important;  color: #000000 !important;}.label-select-menu .labelstyle-ffffff.selected {  background: rgba(255, 255, 255, 0.12) !important;  color: #999999 !important;}
+</style>
 
-        return types.Message(**result)
+  <link href="https://github.com/lmc-eu/php-coding-standard/commits/feature/current.atom" rel="alternate" title="Recent Commits to php-coding-standard:feature/current" type="application/atom+xml">
 
-    async def forward_message(self, chat_id: typing.Union[base.Integer, base.String],
-                              from_chat_id: typing.Union[base.Integer, base.String], message_id: base.Integer,
-                              disable_notification: typing.Union[base.Boolean, None] = None) -> types.Message:
-        """
-        Use this method to forward messages of any kind.
+  <meta name="description" content="This is just an initial import of rules currently defined in lmc/jobs-meta for both php-cs-fixer and PHP_CodeSniffer into Symfon-DI-like yml format which is used by (alpha) version 4 of Symplify/EasyCodingStandard.
+The plan is now to make use of lmc/jobs-meta for sharing codestyle rules obsolete and switch to ECS instead. As the integration is pretty straightforward, this will make reuse of the codestyle quite easy. ECS support excluding files and/or specific fixers, so it will also be easy to adjust the...">
+  <meta name="go-import" content="github.com/lmc-eu/php-coding-standard git https://github.com/lmc-eu/php-coding-standard.git">
 
-        Source: https://core.telegram.org/bots/api#forwardmessage
+  <meta name="octolytics-dimension-user_id" content="429615" /><meta name="octolytics-dimension-user_login" content="lmc-eu" /><meta name="octolytics-dimension-repository_id" content="125386379" /><meta name="octolytics-dimension-repository_nwo" content="lmc-eu/php-coding-standard" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="125386379" /><meta name="octolytics-dimension-repository_network_root_nwo" content="lmc-eu/php-coding-standard" /><meta name="octolytics-dimension-repository_explore_github_marketplace_ci_cta_shown" content="false" />
 
-        :param chat_id: Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param from_chat_id: Unique identifier for the chat where the original message was sent
-        :type from_chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param message_id: Message identifier in the chat specified in from_chat_id
-        :type message_id: :obj:`base.Integer`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.FORWARD_MESSAGE, payload)
 
-        return types.Message(**result)
 
-    async def send_photo(self, chat_id: typing.Union[base.Integer, base.String],
-                         photo: typing.Union[base.InputFile, base.String],
-                         caption: typing.Union[base.String, None] = None,
-                         disable_notification: typing.Union[base.Boolean, None] = None,
-                         reply_to_message_id: typing.Union[base.Integer, None] = None,
-                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                    types.ReplyKeyboardMarkup,
-                                                    types.ReplyKeyboardRemove,
-                                                    types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send photos. 
 
-        Source: https://core.telegram.org/bots/api#sendphoto
+  <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
 
-        :param chat_id: Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param photo: Photo to send.
-        :type photo: :obj:`typing.Union[base.InputFile, base.String]`
-        :param caption: Photo caption (may also be used when resending photos by file_id), 0-200 characters
-        :type caption: :obj:`typing.Union[base.String, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, 
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['photo'])
-        result = await self.send_file('photo', api.Methods.SEND_PHOTO, photo, payload)
+  <meta name="browser-errors-url" content="https://api.github.com/_private/browser/errors">
 
-        return types.Message(**result)
+  <link rel="mask-icon" href="https://assets-cdn.github.com/pinned-octocat.svg" color="#000000">
+  <link rel="icon" type="image/x-icon" class="js-site-favicon" href="https://assets-cdn.github.com/favicon.ico">
 
-    async def send_audio(self, chat_id: typing.Union[base.Integer, base.String],
-                         audio: typing.Union[base.InputFile, base.String],
-                         caption: typing.Union[base.String, None] = None,
-                         duration: typing.Union[base.Integer, None] = None,
-                         performer: typing.Union[base.String, None] = None,
-                         title: typing.Union[base.String, None] = None,
-                         disable_notification: typing.Union[base.Boolean, None] = None,
-                         reply_to_message_id: typing.Union[base.Integer, None] = None,
-                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                    types.ReplyKeyboardMarkup,
-                                                    types.ReplyKeyboardRemove,
-                                                    types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send audio files, if you want Telegram clients to display them in the music player.
-        Your audio must be in the .mp3 format. 
+<meta name="theme-color" content="#1e2327">
+
+
+
+<link rel="manifest" href="/manifest.json" crossOrigin="use-credentials">
+
+  </head>
+
+  <body class="logged-out env-production">
+    
+
+  <div class="position-relative js-header-wrapper ">
+    <a href="#start-of-content" tabindex="1" class="px-2 py-4 show-on-focus js-skip-to-content">Skip to content</a>
+    <div id="js-pjax-loader-bar" class="pjax-loader-bar"><div class="progress"></div></div>
+
+    
+    
+    
+
+
+
+        <header class="Header header-logged-out  position-relative f4 py-3" role="banner">
+  <div class="container-lg d-flex px-3">
+    <div class="d-flex flex-justify-between flex-items-center">
+      <a class="header-logo-invertocat my-0" href="https://github.com/" aria-label="Homepage" data-ga-click="(Logged out) Header, go to homepage, icon:logo-wordmark">
+        <svg height="32" class="octicon octicon-mark-github" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+
+    </div>
+
+    <div class="HeaderMenu HeaderMenu--bright d-flex flex-justify-between flex-auto">
+        <nav class="mt-0">
+          <ul class="d-flex list-style-none">
+              <li class="ml-2">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:features" data-selected-links="/features /features/project-management /features/code-review /features/project-management /features/integrations /features" href="/features">
+                  Features
+</a>              </li>
+              <li class="ml-4">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:business" data-selected-links="/business /business/security /business/customers /business" href="/business">
+                  Business
+</a>              </li>
+
+              <li class="ml-4">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:explore" data-selected-links="/explore /trending /trending/developers /integrations /integrations/feature/code /integrations/feature/collaborate /integrations/feature/ship showcases showcases_search showcases_landing /explore" href="/explore">
+                  Explore
+</a>              </li>
+
+              <li class="ml-4">
+                    <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:marketplace" data-selected-links=" /marketplace" href="/marketplace">
+                      Marketplace
+</a>              </li>
+              <li class="ml-4">
+                <a class="js-selected-navigation-item HeaderNavlink px-0 py-2 m-0" data-ga-click="Header, click, Nav menu - item:pricing" data-selected-links="/pricing /pricing/developer /pricing/team /pricing/business-hosted /pricing/business-enterprise /pricing" href="/pricing">
+                  Pricing
+</a>              </li>
+          </ul>
+        </nav>
+
+      <div class="d-flex">
+          <div class="d-lg-flex flex-items-center mr-3">
+            <div class="header-search scoped-search site-scoped-search js-site-search" role="search">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="js-site-search-form" data-scoped-search-url="/lmc-eu/php-coding-standard/search" data-unscoped-search-url="/search" action="/lmc-eu/php-coding-standard/search" accept-charset="UTF-8" method="get"><input name="utf8" type="hidden" value="&#x2713;" />
+    <label class="form-control header-search-wrapper js-chromeless-input-container">
+        <a class="header-search-scope no-underline" href="/lmc-eu/php-coding-standard/pull/2">This repository</a>
+      <input type="text"
+        class="form-control header-search-input js-site-search-focus js-site-search-field is-clearable"
+        data-hotkey="s"
+        name="q"
+        value=""
+        placeholder="Search"
+        aria-label="Search this repository"
+        data-unscoped-placeholder="Search GitHub"
+        data-scoped-placeholder="Search"
+        autocapitalize="off">
+        <input type="hidden" class="js-site-search-type-field" name="type" >
+    </label>
+</form></div>
+
+          </div>
+
+        <span class="d-inline-block">
+            <div class="HeaderNavlink px-0 py-2 m-0">
+              <a class="text-bold text-white no-underline" href="/login?return_to=%2Flmc-eu%2Fphp-coding-standard%2Fpull%2F2" data-ga-click="(Logged out) Header, clicked Sign in, text:sign-in">Sign in</a>
+                <span class="text-gray">or</span>
+                <a class="text-bold text-white no-underline" href="/join?source=header-repo" data-ga-click="(Logged out) Header, clicked Sign up, text:sign-up">Sign up</a>
+            </div>
+        </span>
+      </div>
+    </div>
+  </div>
+</header>
+
+  </div>
+
+  <div id="start-of-content" class="show-on-focus"></div>
+
+    <div id="js-flash-container">
+</div>
+
+
+
+  <div role="main"
+      class="application-main "
+      >
+        <div itemscope itemtype="http://schema.org/SoftwareSourceCode" class="">
+    <div id="js-repo-pjax-container" data-pjax-container >
+      
+
+<!-- base sha1: &quot;8803f906364288b6df4d32cb1700a92dd933a245&quot; -->
+<!-- head sha1: &quot;d4e1bf36729d2ea74a52c809b9e83f230c2a4d31&quot; -->
+
+
+
+
+  
+
+
+
+  <div class="pagehead repohead instapaper_ignore readability-menu experiment-repo-nav  ">
+    <div class="repohead-details-container clearfix container">
+
+      <ul class="pagehead-actions">
+  <li>
+      <a href="/login?return_to=%2Flmc-eu%2Fphp-coding-standard"
+    class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+    aria-label="You must be signed in to watch a repository" rel="nofollow">
+    <svg class="octicon octicon-eye" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.06 2C3 2 0 8 0 8s3 6 8.06 6C13 14 16 8 16 8s-3-6-7.94-6zM8 12c-2.2 0-4-1.78-4-4 0-2.2 1.8-4 4-4 2.22 0 4 1.8 4 4 0 2.22-1.78 4-4 4zm2-4c0 1.11-.89 2-2 2-1.11 0-2-.89-2-2 0-1.11.89-2 2-2 1.11 0 2 .89 2 2z"/></svg>
+    Watch
+  </a>
+  <a class="social-count" href="/lmc-eu/php-coding-standard/watchers"
+     aria-label="8 users are watching this repository">
+    8
+  </a>
+
+  </li>
+
+  <li>
+      <a href="/login?return_to=%2Flmc-eu%2Fphp-coding-standard"
+    class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+    aria-label="You must be signed in to star a repository" rel="nofollow">
+    <svg class="octicon octicon-star" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M14 6l-4.9-.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14 7 11.67 11.33 14l-.93-4.74z"/></svg>
+    Star
+  </a>
+
+    <a class="social-count js-social-count" href="/lmc-eu/php-coding-standard/stargazers"
+      aria-label="4 users starred this repository">
+      4
+    </a>
+
+  </li>
+
+  <li>
+      <a href="/login?return_to=%2Flmc-eu%2Fphp-coding-standard"
+        class="btn btn-sm btn-with-count tooltipped tooltipped-n"
+        aria-label="You must be signed in to fork a repository" rel="nofollow">
+        <svg class="octicon octicon-repo-forked" viewBox="0 0 10 16" version="1.1" width="10" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 1a1.993 1.993 0 0 0-1 3.72V6L5 8 3 6V4.72A1.993 1.993 0 0 0 2 1a1.993 1.993 0 0 0-1 3.72V6.5l3 3v1.78A1.993 1.993 0 0 0 5 15a1.993 1.993 0 0 0 1-3.72V9.5l3-3V4.72A1.993 1.993 0 0 0 8 1zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm3 10c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zm3-10c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
+        Fork
+      </a>
+
+    <a href="/lmc-eu/php-coding-standard/network" class="social-count"
+       aria-label="0 users forked this repository">
+      0
+    </a>
+  </li>
+</ul>
+
+      <h1 class="public ">
+  <svg class="octicon octicon-repo" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M4 9H3V8h1v1zm0-3H3v1h1V6zm0-2H3v1h1V4zm0-2H3v1h1V2zm8-1v12c0 .55-.45 1-1 1H6v2l-1.5-1.5L3 16v-2H1c-.55 0-1-.45-1-1V1c0-.55.45-1 1-1h10c.55 0 1 .45 1 1zm-1 10H1v2h2v-1h3v1h5v-2zm0-10H2v9h9V1z"/></svg>
+  <span class="author" itemprop="author"><a class="url fn" rel="author" href="/lmc-eu">lmc-eu</a></span><!--
+--><span class="path-divider">/</span><!--
+--><strong itemprop="name"><a data-pjax="#js-repo-pjax-container" href="/lmc-eu/php-coding-standard">php-coding-standard</a></strong>
+
+</h1>
+
+    </div>
+    
+<nav class="reponav js-repo-nav js-sidenav-container-pjax container"
+     itemscope
+     itemtype="http://schema.org/BreadcrumbList"
+     role="navigation"
+     data-pjax="#js-repo-pjax-container">
+
+  <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+    <a class="js-selected-navigation-item reponav-item" itemprop="url" data-hotkey="g c" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches repo_packages /lmc-eu/php-coding-standard" href="/lmc-eu/php-coding-standard">
+      <svg class="octicon octicon-code" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M9.5 3L8 4.5 11.5 8 8 11.5 9.5 13 14 8 9.5 3zm-5 0L0 8l4.5 5L6 11.5 2.5 8 6 4.5 4.5 3z"/></svg>
+      <span itemprop="name">Code</span>
+      <meta itemprop="position" content="1">
+</a>  </span>
+
+    <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+      <a itemprop="url" data-hotkey="g i" class="js-selected-navigation-item reponav-item" data-selected-links="repo_issues repo_labels repo_milestones /lmc-eu/php-coding-standard/issues" href="/lmc-eu/php-coding-standard/issues">
+        <svg class="octicon octicon-issue-opened" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"/></svg>
+        <span itemprop="name">Issues</span>
+        <span class="Counter">0</span>
+        <meta itemprop="position" content="2">
+</a>    </span>
+
+  <span itemscope itemtype="http://schema.org/ListItem" itemprop="itemListElement">
+    <a data-hotkey="g p" itemprop="url" class="js-selected-navigation-item selected reponav-item" data-selected-links="repo_pulls checks /lmc-eu/php-coding-standard/pulls" href="/lmc-eu/php-coding-standard/pulls">
+      <svg class="octicon octicon-git-pull-request" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11 11.28V5c-.03-.78-.34-1.47-.94-2.06C9.46 2.35 8.78 2.03 8 2H7V0L4 3l3 3V4h1c.27.02.48.11.69.31.21.2.3.42.31.69v6.28A1.993 1.993 0 0 0 10 15a1.993 1.993 0 0 0 1-3.72zm-1 2.92c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zM4 3c0-1.11-.89-2-2-2a1.993 1.993 0 0 0-1 3.72v6.56A1.993 1.993 0 0 0 2 15a1.993 1.993 0 0 0 1-3.72V4.72c.59-.34 1-.98 1-1.72zm-.8 10c0 .66-.55 1.2-1.2 1.2-.65 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
+      <span itemprop="name">Pull requests</span>
+      <span class="Counter">1</span>
+      <meta itemprop="position" content="3">
+</a>  </span>
+
+    <a data-hotkey="g b" class="js-selected-navigation-item reponav-item" data-selected-links="repo_projects new_repo_project repo_project /lmc-eu/php-coding-standard/projects" href="/lmc-eu/php-coding-standard/projects">
+      <svg class="octicon octicon-project" viewBox="0 0 15 16" version="1.1" width="15" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 12h3V2h-3v10zm-4-2h3V2H6v8zm-4 4h3V2H2v12zm-1 1h13V1H1v14zM14 0H1a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1z"/></svg>
+      Projects
+      <span class="Counter" >0</span>
+</a>
+
+
+  <a class="js-selected-navigation-item reponav-item" data-selected-links="repo_graphs repo_contributors dependency_graph pulse /lmc-eu/php-coding-standard/pulse" href="/lmc-eu/php-coding-standard/pulse">
+    <svg class="octicon octicon-graph" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M16 14v1H0V0h1v14h15zM5 13H3V8h2v5zm4 0H7V3h2v10zm4 0h-2V6h2v7z"/></svg>
+    Insights
+</a>
+
+</nav>
+
+
+  </div>
+
+<div class="container new-discussion-timeline experiment-repo-nav  ">
+  <div class="repository-content ">
+
+    
+  <div class="issues-listing" data-pjax>
+    
+      <div class="signup-prompt-bg rounded-1">
+      <div class="signup-prompt p-4 text-center mb-4 rounded-1">
+        <div class="position-relative">
+          <!-- '"` --><!-- </textarea></xmp> --></option></form><form action="/site/dismiss_signup_prompt" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="authenticity_token" value="p8Xkc3suRT1yH4rtIFnqHYLaIhsr7TObYuqe9rOB5LRwm1wuvrhC5YzhnjJv+ezRIfRIBiQZYc7lUMSbewIgSA==" />
+            <button type="submit" class="position-absolute top-0 right-0 btn-link link-gray" data-ga-click="(Logged out) Sign up prompt, clicked Dismiss, text:dismiss">
+              Dismiss
+            </button>
+</form>
+          <h3 class="pt-2">Join GitHub today</h3>
+          <p class="col-6 mx-auto">GitHub is home to over 20 million developers working together to host and review code, manage projects, and build software together.</p>
+          <p class="pb-2">
+            <a class="btn btn-blue" href="/join?source=prompt-pr-show" data-ga-click="(Logged out) Sign up prompt, clicked Sign up, text:sign-up">Sign up</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+
+
+  <div class="clearfix js-issues-results">
+    
+  <div
+    id="partial-discussion-header"
+    class="gh-header js-details-container Details js-socket-channel js-updatable-content pull request"
+    data-channel="pull_request:175675775"
+    data-url="/lmc-eu/php-coding-standard/pull/2/show_partial?partial=pull_requests%2Ftitle">
+
+  <div class="gh-header-show ">
+      <div class="gh-header-actions">
+
+          <button type="button" data-facebox="#new_issue_modal" class="btn btn-sm btn-primary float-right" data-hotkey="c" aria-haspopup="true" data-ga-click="Issues, create new issue, view:issue_show location:issue_header style:button logged_in:false">New issue</button>
+          <div id="new_issue_modal" style="display:none;">
+  <div class="mt-3 mb-2 text-center">
+    <svg height="60" class="octicon octicon-comment-discussion text-blue" viewBox="0 0 16 16" version="1.1" width="60" aria-hidden="true"><path fill-rule="evenodd" d="M15 1H6c-.55 0-1 .45-1 1v2H1c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h1v3l3-3h4c.55 0 1-.45 1-1V9h1l3 3V9h1c.55 0 1-.45 1-1V2c0-.55-.45-1-1-1zM9 11H4.5L3 12.5V11H1V5h4v3c0 .55.45 1 1 1h3v2zm6-3h-2v1.5L11.5 8H6V2h9v6z"/></svg>
+  </div>
+
+  <div class="px-4">
+    <p class="text-center mb-4">
+      <strong>Have a question about this project?</strong> Sign up for a free GitHub account to open an issue and contact its maintainers and the community.
+    </p>
+
+    <form class="js-signup-form" autocomplete="off" action="/join?return_to=%2Flmc-eu%2Fphp-coding-standard%2Fissues%2Fnew" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="authenticity_token" value="0ElIwop1IRb29n1e8/7JzZNAf7RfHuX3Eu/uDzSP4qqmLfapTktp5P9VnWqw0sKbWG7QUBNPbm4FDltt3xT8Ng==" />      <auto-check src='/signup_check/username' csrf="gjPggMQuTx9ySAkpTMUp3KtLHI/dbXexOg733/UyvorVAwE9dv557VBdXlkPUppNhX2cPtMzykMOpE1kotHzlQ==">
+        <dl class="form-group"><dt class="input-label"><label name="user[login]" data-facebox-id="user-login-issues" autocapitalize="off" autofocus="autofocus" for="user_login_issues">Pick a username</label></dt><dd><input name="user[login]" data-facebox-id="user-login-issues" autocapitalize="off" autofocus="autofocus" class="form-control" type="text" id="user_login_issues" /></dd></dl>
+      </auto-check>
+
+      <auto-check src='/signup_check/email' csrf="GYAepSJ4BZ/2cdk2nWLiGPlgr+jtrCHqbrLK0fg7ChQRt0hzLhNrkiB0X98CP3eVeM0/2jvI+AxipBwkFj/pPg==">
+        <dl class="form-group"><dt class="input-label"><label name="user[email]" data-facebox-id="user-email-issues" autocapitalize="off" for="user_email_issues">Email Address</label></dt><dd><input name="user[email]" data-facebox-id="user-email-issues" autocapitalize="off" class="form-control" type="text" id="user_email_issues" /></dd></dl>
+      </auto-check>
+
+      <auto-check src='/signup_check/password' csrf="8KbJWeyPq2O/Tg5T87Pi7LsHLkbUl3wGPAMrwfYawRjuHKeafxnBwDQQF4YprTU4fBcfJeV1vVCRomuxGpx5GA==">
+        <dl class="form-group"><dt class="input-label"><label name="user[password]" data-facebox-id="user-password-issues" for="user_password_issues">Password</label></dt><dd><input name="user[password]" data-facebox-id="user-password-issues" class="form-control" type="password" id="user_password_issues" /></dd></dl>
+      </auto-check>
+
+      <input type="hidden" name="source" class="js-signup-source" value="modal-issues">
+      <input type="text" name="required_field_2e69" id="required_field_2e69" style="display: none" class="form-control" />
+<input type="hidden" name="timestamp" value="1521322059705" class="form-control" />
+<input type="hidden" name="timestamp_secret" value="5692e755221695534cd6839b6bdf8033981ef96885a09b0ea7fd65a55f34af7c" class="form-control" />
+
+
+      <button class="btn btn-primary mt-2 btn-block" type="submit" data-ga-click="(Logged out) New issue modal, clicked Sign up, text:sign-up">Sign up for GitHub</button>
+</form>
+    <p class="mt-4 text-gray text-center">Already on GitHub? <a href="/login?return_to=%2Flmc-eu%2Fphp-coding-standard%2Fissues%2Fnew" data-ga-click="(Logged out) New issue modal, clicked Sign in, text:sign-in">Sign in</a> to your account</p>
+  </div>
+</div>
+
+      </div>
+
+    <h1 class="gh-header-title">
+      <span class="js-issue-title">
+        Initial ECS setup according to current rules
+      </span>
+      <span class="gh-header-number">#2</span>
+    </h1>
+  </div>
+
+
+  <div class="TableObject gh-header-meta">
+    <div class="TableObject-item">
+        <div class="State State--green">
+          <svg class="octicon octicon-git-pull-request" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11 11.28V5c-.03-.78-.34-1.47-.94-2.06C9.46 2.35 8.78 2.03 8 2H7V0L4 3l3 3V4h1c.27.02.48.11.69.31.21.2.3.42.31.69v6.28A1.993 1.993 0 0 0 10 15a1.993 1.993 0 0 0 1-3.72zm-1 2.92c-.66 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2zM4 3c0-1.11-.89-2-2-2a1.993 1.993 0 0 0-1 3.72v6.56A1.993 1.993 0 0 0 2 15a1.993 1.993 0 0 0 1-3.72V4.72c.59-.34 1-.98 1-1.72zm-.8 10c0 .66-.55 1.2-1.2 1.2-.65 0-1.2-.55-1.2-1.2 0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2zM2 4.2C1.34 4.2.8 3.65.8 3c0-.65.55-1.2 1.2-1.2.65 0 1.2.55 1.2 1.2 0 .65-.55 1.2-1.2 1.2z"/></svg>
+          Open
+        </div>
+    </div>
+    <div class="TableObject-item TableObject-item--primary">
+          <a class="author pull-header-username css-truncate css-truncate-target expandable" href="/OndraM">OndraM</a>
+   wants to merge 3 commits into
+
+
+
+  <span title="lmc-eu/php-coding-standard:master" class="commit-ref css-truncate user-select-contain expandable base-ref"><span class="css-truncate-target">master</span></span>
+
+  <div class="commit-ref-dropdown">
+    <div class="select-menu js-menu-container js-select-menu commitish-suggester js-load-contents" data-contents-url="/lmc-eu/php-coding-standard/pull/2/show_partial?partial=pull_requests%2Fdescription_branches_dropdown">
+      <button class="btn btn-sm select-menu-button js-menu-target branch" type="button" aria-label="Choose a base branch" aria-haspopup="true" aria-expanded="false">
+        <i>base:</i>
+        <span class="js-select-button css-truncate css-truncate-target" title="base: master">master</span>
+      </button>
+      <div class="select-menu-modal-holder js-menu-content js-navigation-container">
+        <div class="select-menu-modal">
+          <div class="js-select-menu-deferred-content"></div>
+          <div class="select-menu-loading-overlay anim-pulse">
+            <svg height="32" class="octicon octicon-octoface" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M14.7 5.34c.13-.32.55-1.59-.13-3.31 0 0-1.05-.33-3.44 1.3-1-.28-2.07-.32-3.13-.32s-2.13.04-3.13.32c-2.39-1.64-3.44-1.3-3.44-1.3-.68 1.72-.26 2.99-.13 3.31C.49 6.21 0 7.33 0 8.69 0 13.84 3.33 15 7.98 15S16 13.84 16 8.69c0-1.36-.49-2.48-1.3-3.35zM8 14.02c-3.3 0-5.98-.15-5.98-3.35 0-.76.38-1.48 1.02-2.07 1.07-.98 2.9-.46 4.96-.46 2.07 0 3.88-.52 4.96.46.65.59 1.02 1.3 1.02 2.07 0 3.19-2.68 3.35-5.98 3.35zM5.49 9.01c-.66 0-1.2.8-1.2 1.78s.54 1.79 1.2 1.79c.66 0 1.2-.8 1.2-1.79s-.54-1.78-1.2-1.78zm5.02 0c-.66 0-1.2.79-1.2 1.78s.54 1.79 1.2 1.79c.66 0 1.2-.8 1.2-1.79s-.53-1.78-1.2-1.78z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+from
+
+<span title="lmc-eu/php-coding-standard:feature/current" class="commit-ref css-truncate user-select-contain expandable head-ref"><span class="css-truncate-target">feature/current</span></span>
+
+
+
+    </div>
+  </div>
+</div>
+
+
+      
+<div class="tabnav tabnav-pr">
+    <div class="tabnav-extra float-right">
+      <span class="diffstat" id="diffstat">
+        <span class="text-green">
+          +213
+        </span>
+        <span class="text-red">
+          −2
+        </span>
+        <span class="tooltipped tooltipped-s" aria-label="215 lines changed">
+          <span class="block-diff-added"></span><span class="block-diff-added"></span><span class="block-diff-added"></span><span class="block-diff-added"></span><span class="block-diff-neutral"></span>
+        </span>
+      </span>
+    </div>
+
+  <nav class="tabnav-tabs">
+    <a href="/lmc-eu/php-coding-standard/pull/2" class="tabnav-tab selected js-pjax-history-navigate">
+      <svg class="octicon octicon-comment-discussion" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M15 1H6c-.55 0-1 .45-1 1v2H1c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h1v3l3-3h4c.55 0 1-.45 1-1V9h1l3 3V9h1c.55 0 1-.45 1-1V2c0-.55-.45-1-1-1zM9 11H4.5L3 12.5V11H1V5h4v3c0 .55.45 1 1 1h3v2zm6-3h-2v1.5L11.5 8H6V2h9v6z"/></svg>
+      Conversation
+
+      <span id="conversation_tab_counter" class="Counter">
+        0
+      </span>
+    </a>
+
+    <a href="/lmc-eu/php-coding-standard/pull/2/commits" class="tabnav-tab  js-pjax-history-navigate">
+      <svg class="octicon octicon-git-commit" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10.86 7c-.45-1.72-2-3-3.86-3-1.86 0-3.41 1.28-3.86 3H0v2h3.14c.45 1.72 2 3 3.86 3 1.86 0 3.41-1.28 3.86-3H14V7h-3.14zM7 10.2c-1.22 0-2.2-.98-2.2-2.2 0-1.22.98-2.2 2.2-2.2 1.22 0 2.2.98 2.2 2.2 0 1.22-.98 2.2-2.2 2.2z"/></svg>
+      Commits
+
+      <span id="commits_tab_counter" class="Counter">
+        3
+      </span>
+    </a>
+
+
+      <link rel="pjax-prefetch" href="/lmc-eu/php-coding-standard/pull/2/files">
+    <a href="/lmc-eu/php-coding-standard/pull/2/files" class="tabnav-tab  js-pjax-history-navigate">
+      <svg class="octicon octicon-diff" viewBox="0 0 13 16" version="1.1" width="13" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M6 7h2v1H6v2H5V8H3V7h2V5h1v2zm-3 6h5v-1H3v1zM7.5 2L11 5.5V15c0 .55-.45 1-1 1H1c-.55 0-1-.45-1-1V3c0-.55.45-1 1-1h6.5zM10 6L7 3H1v12h9V6zM8.5 0H3v1h5l4 4v8h1V4.5L8.5 0z"/></svg>
+      Files changed
+
+        <span id="files_tab_counter" class="Counter">
+            3
+        </span>
+    </a>
+  </nav>
+</div>
+
+
+
+    <h2 class="sr-only">Conversation</h2>
+    <div id="discussion_bucket" class="clearfix pull-request-tab-content is-visible">
+      
+<div class="discussion-sidebar">
+  <div id="partial-discussion-sidebar"
+  class="js-socket-channel js-updatable-content"
+  data-channel="pull_request:175675775"
+  data-url="/lmc-eu/php-coding-standard/issues/2/show_partial?partial=issues%2Fsidebar">
+
+    <div class="discussion-sidebar-item sidebar-assignee js-discussion-sidebar-item position-relative">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form data-remote="true" class="js-issue-sidebar-form" action="/lmc-eu/php-coding-standard/pull/2/review-requests?pr_global_id=MDExOlB1bGxSZXF1ZXN0MTc1Njc1Nzc1" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="authenticity_token" value="QAPnrVyA1upUd0+b1P7fdsguVD4PyEslGLiJQqe/BuvQFL33QhxilnOvbL18kDU9AjblPSf5PjucySAmA89e2g==" />
+    
+
+  <div class="discussion-sidebar-heading text-bold">
+    Reviewers
+  </div>
+
+    <span class="css-truncate">
+
+      <p>
+          <img class="avatar" src="https://avatars1.githubusercontent.com/u/270200?s=40&amp;v=4" width="20" height="20" alt="@tenerd" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> tenerd </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from tenerd">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars3.githubusercontent.com/u/759218?s=40&amp;v=4" width="20" height="20" alt="@davidkmenta" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> davidkmenta </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from davidkmenta">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars0.githubusercontent.com/u/1377270?s=40&amp;v=4" width="20" height="20" alt="@jirinovak" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> jirinovak </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from jirinovak">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars3.githubusercontent.com/u/2327491?s=40&amp;v=4" width="20" height="20" alt="@legendik" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> legendik </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from legendik">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars1.githubusercontent.com/u/2787526?s=40&amp;v=4" width="20" height="20" alt="@dudla" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> dudla </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from dudla">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars0.githubusercontent.com/u/5029273?s=40&amp;v=4" width="20" height="20" alt="@kdosiodjinud" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> kdosiodjinud </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from kdosiodjinud">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars3.githubusercontent.com/u/6317184?s=40&amp;v=4" width="20" height="20" alt="@MortalFlesh" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> MortalFlesh </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from MortalFlesh">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars2.githubusercontent.com/u/9384512?s=40&amp;v=4" width="20" height="20" alt="@hokypierce" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> hokypierce </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from hokypierce">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars0.githubusercontent.com/u/9471103?s=40&amp;v=4" width="20" height="20" alt="@MartinKristof" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> MartinKristof </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from MartinKristof">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars3.githubusercontent.com/u/22296471?s=40&amp;v=4" width="20" height="20" alt="@MarketaFilipova" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> MarketaFilipova </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from MarketaFilipova">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars3.githubusercontent.com/u/33280741?s=40&amp;v=4" width="20" height="20" alt="@florianjiri" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> florianjiri </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from florianjiri">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+      <p>
+          <img class="avatar" src="https://avatars0.githubusercontent.com/u/33895432?s=40&amp;v=4" width="20" height="20" alt="@Fantomas-7" />
+
+          <span class="css-truncate-target text-bold v-align-middle text-gray"> Fantomas-7 </span>
+
+        <span class="reviewers-status-icon tooltipped tooltipped-nw float-right d-block text-center" aria-label="Awaiting requested review from Fantomas-7">
+          <svg class="octicon octicon-primitive-dot bg-pending" viewBox="0 0 8 16" version="1.1" width="8" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M0 8c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg>
+        </span>
+
+      </p>
+
+      
+</span>
+
+</form></div>
+
+
+
+  <div class="discussion-sidebar-item sidebar-assignee js-discussion-sidebar-item">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form data-remote="true" class="js-issue-sidebar-form" action="/lmc-eu/php-coding-standard/issues/2?partial=issues%2Fsidebar%2Fshow%2Fassignees" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="_method" value="put" /><input type="hidden" name="authenticity_token" value="dwO3uTYdiIelsz2n0UjonMz5/OqAc4f0wRWt9OtorsNM3ssGtBScWq85LdPkUgX72x8Y1SmLxSzhAr8ZQAG9/A==" />
+    
+
+  <div class="discussion-sidebar-heading text-bold">
+    Assignees
+  </div>
+
+    <span class="css-truncate">
+    No one assigned
+</span>
+
+</form></div>
+
+  <div class="discussion-sidebar-item sidebar-labels js-discussion-sidebar-item">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form data-remote="true" class="js-issue-sidebar-form" action="/lmc-eu/php-coding-standard/issues/2?partial=issues%2Fsidebar%2Fshow%2Flabels" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="_method" value="put" /><input type="hidden" name="authenticity_token" value="vAhhGa0Ligrj2bA9Gsp2IKrVa2kOSFV9l7t7kBORYnCH1R2mLwKe1+lToEkv0JtHvTOPVqewF6W3rGl9uPhxTw==" />
+    <div class="js-issue-labels-container">
+      
+
+  <div class="discussion-sidebar-heading text-bold">
+    Labels
+  </div>
+
+
+    </div>
+    <div aria-live="polite" aria-label="Labels">
+      <div class="labels css-truncate">
+    None yet
+</div>
+
+    </div>
+</form></div>
+
+    <div class="discussion-sidebar-item js-discussion-sidebar-item">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form data-remote="true" class="js-issue-sidebar-form" action="/lmc-eu/php-coding-standard/projects/issues/2" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="_method" value="put" /><input type="hidden" name="authenticity_token" value="jNBzNFPwsyzLsckIB2vYAg7Ahy5u7o6nJEudaWAN8tYNYVtW7+jDyaVzl+ZhsZkt1sO52lfa/dTuzhNw9oCK4Q==" />
+    
+
+  <div class="discussion-sidebar-heading text-bold">
+    Projects
+  </div>
+
+    
+<span class="css-truncate sidebar-projects">
+    None yet
+</span>
+
+</form></div>
+
+  <div class="discussion-sidebar-item sidebar-milestone js-discussion-sidebar-item">
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="js-issue-sidebar-form" data-remote="true" action="/lmc-eu/php-coding-standard/issues/2/set_milestone?partial=issues%2Fsidebar%2Fshow%2Fmilestone" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="_method" value="put" /><input type="hidden" name="authenticity_token" value="YudgqvqSpZAJHOQ6s8P/OODDDMQFslwoot8IkhGoaTqgLZU6avWtQYjH/N3z0PxKgld6IDdfQH+L3Yo8FwNQyw==" />
+    
+
+  <div class="discussion-sidebar-heading text-bold">
+    Milestone
+  </div>
+
+      No milestone
+
+</form></div>
+
+  
+  <div id="partial-users-participants" class="discussion-sidebar-item">
+  <div class="participation">
+
+    <div class="discussion-sidebar-heading text-bold">
+      1 participant
+    </div>
+    <div class="participation-avatars d-flex flex-wrap">
+        <a class="participant-avatar" href="/OndraM">
+          <img class="avatar" src="https://avatars2.githubusercontent.com/u/793041?s=52&amp;v=4" width="26" height="26" alt="@OndraM" /> 
+        </a>
+    </div>
+  </div>
+</div>
+
+
+  
+
+</div>
+
+
+</div>
+
+<div class="discussion-timeline pull-discussion-timeline js-pull-discussion-timeline js-quote-selection-container js-review-state-classes  ">
+  <div class="js-discussion js-socket-channel" data-channel="marked-as-read:pull-request:175675775">
+
+    <div class="timeline-comment-wrapper js-comment-container mt-0">
+      
+
+<div class="avatar-parent-child timeline-comment-avatar">
+    <a href="/OndraM">
+      <img class="avatar rounded-1" height="44" width="44" alt="@OndraM" src="https://avatars1.githubusercontent.com/u/793041?s=88&amp;v=4" />
+    </a>
+
+</div>
+
+
+      
+<div class="js-minimizable-comment-group">
+  <div id="issue-175675775"
+       class="unminimized-comment comment previewable-edit js-comment js-task-list-container timeline-comment  "
+       data-body-version="d0bdfb69ab291e65cd572b343b5bddf2">
+
+    
+<div class="timeline-comment-header clearfix">
+  <div class="timeline-comment-actions">
+    
+
+
+
+
+
+
+
+<!-- Closes div if we are showing the kebab menu -->
+
+  </div>
+
+    
+    <span class="timeline-comment-label text-bold tooltipped tooltipped-multiline tooltipped-s" aria-label="This user is the owner of the php-coding-standard repository.">
+      Owner
+    </span>
+
+
+
+  <h3 class="timeline-comment-header-text f5 text-normal">
+
+    <strong>
+      
+
+  <a href="/OndraM" class="author text-inherit">OndraM</a>
+  
+
+    </strong>
+
+    commented
+
+    <a href="#issue-175675775" class="timestamp"><relative-time datetime="2018-03-17T01:15:56Z">Mar 17, 2018</relative-time></a>
+
+
+      
+  <span class="d-inline-block text-gray-light">&#8226;</span>
+
+
+  <div class="d-inline-block dropdown js-menu-container js-select-menu">
+    <button class="btn-link no-underline text-gray dropdown-toggle js-menu-target" type="button" aria-expanded="false" aria-haspopup="true">
+        edited
+        <svg height="11" class="octicon octicon-triangle-down v-align-middle" viewBox="0 0 12 16" version="1.1" width="8" aria-hidden="true"><path fill-rule="evenodd" d="M0 5l6 6 6-6z"/></svg>
+    </button>
+
+    <div class="dropdown-menu-content anim-scale-in js-menu-content">
+      <div class="dropdown-menu dropdown-menu-se py-0 overflow-hidden" style="width:272px">
+        <div class="dropdown-header px-3 py-2 border-bottom">Edited 6 times</div>
+        <ul class="bg-gray-light" style="overflow-y:auto; max-height:250px">
+          <li class="d-flex flex-justify-between border-bottom px-3 py-2 f6 css-truncate">
+              <a href="https://github.com/OndraM" class="text-inherit no-underline">
+                <img src="https://avatars0.githubusercontent.com/u/793041?v=4" width="20" height="20" class="avatar avatar-small v-align-middle" alt="@OndraM">
+                <span class="css-truncate-target v-align-middle text-bold text-gray-dark">OndraM </span>
+              </a>
+            <div><relative-time datetime="2018-03-17T01:32:33Z">Mar 17, 2018</relative-time></div>
+          </li>
+          <li class="d-flex flex-justify-between border-bottom px-3 py-2 f6 css-truncate">
+              <a href="https://github.com/OndraM" class="text-inherit no-underline">
+                <img src="https://avatars0.githubusercontent.com/u/793041?v=4" width="20" height="20" class="avatar avatar-small v-align-middle" alt="@OndraM">
+                <span class="css-truncate-target v-align-middle text-bold text-gray-dark">OndraM </span>
+              </a>
+            <div><relative-time datetime="2018-03-17T01:32:19Z">Mar 17, 2018</relative-time></div>
+          </li>
+          <li class="d-flex flex-justify-between border-bottom px-3 py-2 f6 css-truncate">
+              <a href="https://github.com/OndraM" class="text-inherit no-underline">
+                <img src="https://avatars0.githubusercontent.com/u/793041?v=4" width="20" height="20" class="avatar avatar-small v-align-middle" alt="@OndraM">
+                <span class="css-truncate-target v-align-middle text-bold text-gray-dark">OndraM </span>
+              </a>
+            <div><relative-time datetime="2018-03-17T01:29:00Z">Mar 17, 2018</relative-time></div>
+          </li>
+          <li class="d-flex flex-justify-between border-bottom px-3 py-2 f6 css-truncate">
+              <a href="https://github.com/OndraM" class="text-inherit no-underline">
+                <img src="https://avatars0.githubusercontent.com/u/793041?v=4" width="20" height="20" class="avatar avatar-small v-align-middle" alt="@OndraM">
+                <span class="css-truncate-target v-align-middle text-bold text-gray-dark">OndraM </span>
+              </a>
+            <div><relative-time datetime="2018-03-17T01:26:18Z">Mar 17, 2018</relative-time></div>
+          </li>
+          <li class="d-flex flex-justify-between border-bottom px-3 py-2 f6 css-truncate">
+              <a href="https://github.com/OndraM" class="text-inherit no-underline">
+                <img src="https://avatars0.githubusercontent.com/u/793041?v=4" width="20" height="20" class="avatar avatar-small v-align-middle" alt="@OndraM">
+                <span class="css-truncate-target v-align-middle text-bold text-gray-dark">OndraM </span>
+              </a>
+            <div><relative-time datetime="2018-03-17T01:22:59Z">Mar 17, 2018</relative-time></div>
+          </li>
+          <li class="d-flex flex-justify-between border-bottom px-3 py-2 f6 css-truncate">
+              <a href="https://github.com/OndraM" class="text-inherit no-underline">
+                <img src="https://avatars0.githubusercontent.com/u/793041?v=4" width="20" height="20" class="avatar avatar-small v-align-middle" alt="@OndraM">
+                <span class="css-truncate-target v-align-middle text-bold text-gray-dark">OndraM </span>
+              </a>
+            <div><relative-time datetime="2018-03-17T01:19:35Z">Mar 17, 2018</relative-time></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  </h3>
+</div>
+
+
+    <div class="edit-comment-hide">
+
+      
+<table class="d-block">
+  <tbody class="d-block">
+    <tr class="d-block">
+      <td class="d-block comment-body markdown-body  js-comment-body">
+          <p>This is just an initial import of rules currently defined in <code>lmc/jobs-meta</code> for both <a href="https://github.com/FriendsOfPHP/PHP-CS-Fixer">php-cs-fixer</a> and <a href="https://github.com/squizlabs/PHP_CodeSniffer/">PHP_CodeSniffer</a> into Symfon-DI-like yml format which is used by (alpha) version 4 of <a href="https://github.com/Symplify/EasyCodingStandard">Symplify/EasyCodingStandard</a>.</p>
+<p>The plan is now to make use of <code>lmc/jobs-meta</code> for sharing codestyle rules obsolete and switch to ECS instead. As the integration is pretty straightforward, this will make reuse of the codestyle quite easy. ECS support excluding files and/or specific fixers, so it will also be easy to adjust the configuration for edgecases, but still benefit from the standard, well known and unified configuration format.</p>
+<p>Codebases currenly using rulesets from <code>lmc/jobs-meta</code> should be 99 % compatible with this configuration - attached configuration was tested on few of them (I tried eg. Jobs, ApiBundle, Consentor, Footer API, ApplyFeedback, CompanyProfiles, <a href="https://github.com/lmc-eu/matej-client-php">matej-client-php</a>, <a href="https://github.com/lmc-eu/steward">Steward</a>...), so this set of rules is already battle-tested.</p>
+<p>However what needs to be resolved:</p>
+<ol>
+<li>Will we sort and/or structure the rules anyhow? Until now we had php-cs-fixer rules sorted alphabetically according to their name (like "array_syntax", "phpdoc_no_empty_return" etc.), which is the current order in easy-coding-standard.yml in this PR. But it does not make any sense now, and will be hard to maintain. Maybe we can sort them now by their FQCN. Yes or no? (Or null? <g-emoji class="g-emoji" alias="upside_down_face" fallback-src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f643.png">🙃</g-emoji> )</li>
+<li>Should the phpcs/PHP_CodeSniffer rules be separated in the configuration like now, or we will simply sort all the services alphabetically by their FQCN?</li>
+<li>Do we want to use comments explaining each of the rule? (We had them in phpcs-ruleset.xml of <code>lmc/jobs-meta</code>, but not in php-cs-fixer-ruleset.php - so for not I kept them in the PHP_CodeSniffer section, until we decide if we want to have them or not).</li>
+<li>PHP 7-specific rules were not yet part of jobs-meta so they are not part of this (yet). But I will add them directly in the main file - if there is anyone still on PHP 5.6, they can simply <a href="https://github.com/Symplify/EasyCodingStandard#exclude-checkers">skip them</a>. Ok?</li>
+</ol>
+<p>Your thoughts?</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
         
-        For sending voice messages, use the sendVoice method instead.
 
-        Source: https://core.telegram.org/bots/api#sendaudio
+<div class="comment-reactions  js-reactions-container "
 
-        :param chat_id: Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param audio: Audio file to send.
-        :type audio: :obj:`typing.Union[base.InputFile, base.String]`
-        :param caption: Audio caption, 0-200 characters
-        :type caption: :obj:`typing.Union[base.String, None]`
-        :param duration: Duration of the audio in seconds
-        :type duration: :obj:`typing.Union[base.Integer, None]`
-        :param performer: Performer
-        :type performer: :obj:`typing.Union[base.String, None]`
-        :param title: Track name
-        :type title: :obj:`typing.Union[base.String, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup,
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['audio'])
-        result = await self.send_file('audio', api.Methods.SEND_AUDIO, audio, payload)
+    >
+</div>
 
-        return types.Message(**result)
+    </div>
 
-    async def send_document(self, chat_id: typing.Union[base.Integer, base.String],
-                            document: typing.Union[base.InputFile, base.String],
-                            caption: typing.Union[base.String, None] = None,
-                            disable_notification: typing.Union[base.Boolean, None] = None,
-                            reply_to_message_id: typing.Union[base.Integer, None] = None,
-                            reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                       types.ReplyKeyboardMarkup,
-                                                       types.ReplyKeyboardRemove,
-                                                       types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send general files. 
+  </div>
+</div>
+
+    </div>
+
+    
+
+
+  <div id="js-timeline-progressive-loader" data-timeline-item-src="lmc-eu/php-coding-standard/timeline?id=MDExOlB1bGxSZXF1ZXN0MTc1Njc1Nzc1&amp;variables%5Bafter%5D=Y3Vyc29yOnYyOpPPAAABYjGPjJAH2gAyMTc1Njc1Nzc1OmQ0ZTFiZjM2NzI5ZDJlYTc0YTUyYzgwOWI5ZTgzZjIzMGMyYTRkMzE%3D&amp;variables%5Bfirst%5D=80" ></div>
+
+
+  
+<div class="js-timeline-item js-timeline-progressive-focus-container" data-gid="MDE3OlB1bGxSZXF1ZXN0Q29tbWl0MTc1Njc1Nzc1Ojc0ZGU2OGU0MmM4YzY2NDI1YjUxMzdlZWEwNzAxMDI5YWFkYzNmNzc=">
+    
+<div class="discussion-item discussion-commits" id="commits-pushed-74de68e">
+  <div class="discussion-item-body">
+    <div class="timeline-commits ">
         
-        Bots can currently send files of any type of up to 50 MB in size, this limit may be changed in the future.
 
-        Source: https://core.telegram.org/bots/api#senddocument
+<div class="commit js-details-container Details js-socket-channel js-updatable-content no-wrap d-flex mb-2"
+     data-channel="repo:125386379:commit:74de68e42c8c66425b5137eea0701029aadc3f77"
+     data-url="/_render_node/MDE3OlB1bGxSZXF1ZXN0Q29tbWl0MTc1Njc1Nzc1Ojc0ZGU2OGU0MmM4YzY2NDI1YjUxMzdlZWEwNzAxMDI5YWFkYzNmNzc=/commit/pull_condensed">
 
-        :param chat_id: Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param document: File to send.
-        :type document: :obj:`typing.Union[base.InputFile, base.String]`
-        :param caption: Document caption (may also be used when resending documents by file_id), 0-200 characters
-        :type caption: :obj:`typing.Union[base.String, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options. 
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, 
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply], None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['document'])
-        result = await self.send_file('document', api.Methods.SEND_DOCUMENT, document, payload)
+  <div class="commit-icon mr-3">
+    <svg class="octicon octicon-git-commit" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10.86 7c-.45-1.72-2-3-3.86-3-1.86 0-3.41 1.28-3.86 3H0v2h3.14c.45 1.72 2 3 3.86 3 1.86 0 3.41-1.28 3.86-3H14V7h-3.14zM7 10.2c-1.22 0-2.2-.98-2.2-2.2 0-1.22.98-2.2 2.2-2.2 1.22 0 2.2.98 2.2 2.2 0 1.22-.98 2.2-2.2 2.2z"/></svg>
+  </div>
 
-        return types.Message(**result)
+  
+<div class="AvatarStack flex-self-start ">
+  <div class="AvatarStack-body tooltipped tooltipped-se tooltipped-align-left-1"
+       aria-label="OndraM">
 
-    async def send_video(self, chat_id: typing.Union[base.Integer, base.String],
-                         video: typing.Union[base.InputFile, base.String],
-                         duration: typing.Union[base.Integer, None] = None,
-                         width: typing.Union[base.Integer, None] = None,
-                         height: typing.Union[base.Integer, None] = None,
-                         caption: typing.Union[base.String, None] = None,
-                         supports_streaming: typing.Union[base.Boolean, None] = None,
-                         disable_notification: typing.Union[base.Boolean, None] = None,
-                         reply_to_message_id: typing.Union[base.Integer, None] = None,
-                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                    types.ReplyKeyboardMarkup,
-                                                    types.ReplyKeyboardRemove,
-                                                    types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send video files, Telegram clients support mp4 videos
-        (other formats may be sent as Document).
+        <a href="/OndraM" data-skip-pjax="true" class="avatar">
+          <img src="https://avatars3.githubusercontent.com/u/793041?s=40&amp;v=4" width="20" height="20" alt="@OndraM">
+        </a>
+  </div>
+</div>
 
-        Source: https://core.telegram.org/bots/api#sendvideo
 
-        :param chat_id: Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param video: Video to send.
-        :type video: :obj:`typing.Union[base.InputFile, base.String]`
-        :param duration: Duration of sent video in seconds
-        :type duration: :obj:`typing.Union[base.Integer, None]`
-        :param width: Video width
-        :type width: :obj:`typing.Union[base.Integer, None]`
-        :param height: Video height
-        :type height: :obj:`typing.Union[base.Integer, None]`
-        :param caption: Video caption (may also be used when resending videos by file_id), 0-200 characters
-        :type caption: :obj:`typing.Union[base.String, None]`
-        :param supports_streaming: Pass True, if the uploaded video is suitable for streaming
-        :type supports_streaming: :obj:`typing.Union[base.Boolean, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup,
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['video'])
-        result = await self.send_file('video', api.Methods.SEND_VIDEO, video, payload)
 
-        return types.Message(**result)
+  <div class="commit-message pr-1">
+    <code>
+      <a title="Require ECS" data-pjax="true" class="message" href="/lmc-eu/php-coding-standard/pull/2/commits/74de68e42c8c66425b5137eea0701029aadc3f77">Require ECS</a>
+    </code>
 
-    async def send_voice(self, chat_id: typing.Union[base.Integer, base.String],
-                         voice: typing.Union[base.InputFile, base.String],
-                         caption: typing.Union[base.String, None] = None,
-                         duration: typing.Union[base.Integer, None] = None,
-                         disable_notification: typing.Union[base.Boolean, None] = None,
-                         reply_to_message_id: typing.Union[base.Integer, None] = None,
-                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                    types.ReplyKeyboardMarkup,
-                                                    types.ReplyKeyboardRemove,
-                                                    types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send audio files, if you want Telegram clients to display the file 
-        as a playable voice message. 
+
+  </div>
+
+  <div class="commit-sig-status text-right pr-1">
+    
+    <div class="d-inline-block dropdown dropdown-signed-commit js-menu-container">
+        <button type="button" class="signed-commit-badge signed-commit-badge-small verified js-menu-target"
+          aria-label="View commit signature"
+          aria-haspopup="true" aria-expanded="false">
+            Verified
+        </button>
+        <div class="dropdown-menu-content anim-scale-in js-menu-content">
+          <div class="dropdown-menu dropdown-menu-w py-0 text-gray-dark text-left">
+            <div class="signed-commit-header TableObject">
+              <div class="TableObject-item">
+                <svg height="32" class="octicon octicon-verified mr-2" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M15.67 7.06l-1.08-1.34c-.17-.22-.28-.48-.31-.77l-.19-1.7a1.51 1.51 0 0 0-1.33-1.33l-1.7-.19c-.3-.03-.56-.16-.78-.33L8.94.32c-.55-.44-1.33-.44-1.88 0L5.72 1.4c-.22.17-.48.28-.77.31l-1.7.19c-.7.08-1.25.63-1.33 1.33l-.19 1.7c-.03.3-.16.56-.33.78L.32 7.05c-.44.55-.44 1.33 0 1.88l1.08 1.34c.17.22.28.48.31.77l.19 1.7c.08.7.63 1.25 1.33 1.33l1.7.19c.3.03.56.16.78.33l1.34 1.08c.55.44 1.33.44 1.88 0l1.34-1.08c.22-.17.48-.28.77-.31l1.7-.19c.7-.08 1.25-.63 1.33-1.33l.19-1.7c.03-.3.16-.56.33-.78l1.08-1.34c.44-.55.44-1.33 0-1.88zM6.5 12L3 8.5 4.5 7l2 2 5-5L13 5.55 6.5 12z"/></svg>
+              </div>
+              <div class="TableObject-item--primary">
+                    This commit was signed with a <strong class="signed-commit-verified-label">verified signature</strong>.
+              </div>
+            </div>
+
+              <div class="signed-commit-signer TableObject">
+                <a class="TableObject-item" aria-label="OndraM" href="/OndraM">
+                  <img src="https://avatars0.githubusercontent.com/u/793041?s=64&amp;v=4" width="32" height="32" alt="@OndraM" class="avatar mr-2">
+                </a>
+                <span class="signed-commit-signer-name TableObject-item--primary">
+                  <a class="signer" href="/OndraM">OndraM</a>
+                  Ondřej Machulda
+                </span>
+              </div>
+
+            <div class="signed-commit-footer">
+                <span class="d-block">GPG key ID: <span class="text-gray">2291FBF793FDAAA0</span></span>
+              <a href="https://help.github.com/articles/signing-commits-with-gpg/">Learn about signing commits</a>
+            </div>
+          </div>
+        </div>
+    </div>
+
+  </div>
+
+  <div class="commit-ci-status pr-1">
+  </div>
+
+  <div class="commit-meta text-right">
+    <code>
+      <a href="/lmc-eu/php-coding-standard/pull/2/commits/74de68e42c8c66425b5137eea0701029aadc3f77" class="commit-id">74de68e</a>
+    </code>
+  </div>
+</div>
+
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+  
+<div class="js-timeline-item js-timeline-progressive-focus-container" data-gid="MDIwOlJldmlld1JlcXVlc3RlZEV2ZW50MTUyNjY0NzE4Mg==">
+      <div class="discussion-item discussion-item-review_requested">
+  <h3 class="discussion-item-header f5 text-normal" id="event-1526647182">
+
+    <span class="discussion-item-icon">
+      <svg class="octicon octicon-eye" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.06 2C3 2 0 8 0 8s3 6 8.06 6C13 14 16 8 16 8s-3-6-7.94-6zM8 12c-2.2 0-4-1.78-4-4 0-2.2 1.8-4 4-4 2.22 0 4 1.8 4 4 0 2.22-1.78 4-4 4zm2-4c0 1.11-.89 2-2 2-1.11 0-2-.89-2-2 0-1.11.89-2 2-2 1.11 0 2 .89 2 2z"/></svg>
+    </span>
+
+    
+
+        <img src="https://avatars3.githubusercontent.com/u/793041?s=32&amp;v=4" alt="@OndraM" height="16" width="16" class="avatar">
+  <a href="/OndraM" class="author">OndraM</a>
+  
+
+
+      
+    requested review from
         
-        For this to work, your audio must be in an .ogg file encoded with OPUS 
-        (other formats may be sent as Audio or Document).
-
-        Source: https://core.telegram.org/bots/api#sendvoice
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param voice: Audio file to send.
-        :type voice: :obj:`typing.Union[base.InputFile, base.String]`
-        :param caption: Voice message caption, 0-200 characters
-        :type caption: :obj:`typing.Union[base.String, None]`
-        :param duration: Duration of the voice message in seconds
-        :type duration: :obj:`typing.Union[base.Integer, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup,
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['voice'])
-        result = await self.send_file('voice', api.Methods.SEND_VOICE, voice, payload)
-
-        return types.Message(**result)
-
-    async def send_video_note(self, chat_id: typing.Union[base.Integer, base.String],
-                              video_note: typing.Union[base.InputFile, base.String],
-                              duration: typing.Union[base.Integer, None] = None,
-                              length: typing.Union[base.Integer, None] = None,
-                              disable_notification: typing.Union[base.Boolean, None] = None,
-                              reply_to_message_id: typing.Union[base.Integer, None] = None,
-                              reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                         types.ReplyKeyboardMarkup,
-                                                         types.ReplyKeyboardRemove,
-                                                         types.ForceReply, None] = None) -> types.Message:
-        """
-        As of v.4.0, Telegram clients support rounded square mp4 videos of up to 1 minute long. 
-        Use this method to send video messages.
-
-        Source: https://core.telegram.org/bots/api#sendvideonote
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param video_note: Video note to send. 
-        :type video_note: :obj:`typing.Union[base.InputFile, base.String]`
-        :param duration: Duration of sent video in seconds
-        :type duration: :obj:`typing.Union[base.Integer, None]`
-        :param length: Video width and height
-        :type length: :obj:`typing.Union[base.Integer, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, 
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['video_note'])
-        result = await self.send_file('video_note', api.Methods.SEND_VIDEO_NOTE, video_note, payload)
-
-        return types.Message(**result)
-
-    async def send_media_group(self, chat_id: typing.Union[base.Integer, base.String],
-                               media: typing.Union[types.MediaGroup, typing.List],
-                               disable_notification: typing.Union[base.Boolean, None] = None,
-                               reply_to_message_id: typing.Union[base.Integer,
-                                                                 None] = None) -> typing.List[types.Message]:
-        """
-        Use this method to send a group of photos or videos as an album.
-
-        Source: https://core.telegram.org/bots/api#sendmediagroup
-
-        :param chat_id:	Unique identifier for the target chat or username of the target channel
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param media: A JSON-serialized array describing photos and videos to be sent
-        :type media: :obj:`typing.Union[types.MediaGroup, typing.List]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :return: On success, an array of the sent Messages is returned.
-        :rtype: typing.List[types.Message]
-        """
-        # Convert list to MediaGroup
-        if isinstance(media, list):
-            media = types.MediaGroup(media)
-
-        # Extract files
-        files = media.get_files()
-
-        media = prepare_arg(media)
-        payload = generate_payload(**locals(), exclude=['files'])
-        result = await self.request(api.Methods.SEND_MEDIA_GROUP, payload, files)
-
-        return [types.Message(**message) for message in result]
-
-    async def send_location(self, chat_id: typing.Union[base.Integer, base.String], latitude: base.Float,
-                            longitude: base.Float, live_period: typing.Union[base.Integer, None] = None,
-                            disable_notification: typing.Union[base.Boolean, None] = None,
-                            reply_to_message_id: typing.Union[base.Integer, None] = None,
-                            reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                       types.ReplyKeyboardMarkup,
-                                                       types.ReplyKeyboardRemove,
-                                                       types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send point on the map.
-
-        Source: https://core.telegram.org/bots/api#sendlocation
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param latitude: Latitude of the location
-        :type latitude: :obj:`base.Float`
-        :param longitude: Longitude of the location
-        :type longitude: :obj:`base.Float`
-        :param live_period: Period in seconds for which the location will be updated
-        :type live_period: :obj:`typing.Union[base.Integer, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, 
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SEND_LOCATION, payload)
-
-        return types.Message(**result)
-
-    async def edit_message_live_location(self, latitude: base.Float, longitude: base.Float,
-                                         chat_id: typing.Union[base.Integer, base.String, None] = None,
-                                         message_id: typing.Union[base.Integer, None] = None,
-                                         inline_message_id: typing.Union[base.String, None] = None,
-                                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                                    None] = None) -> types.Message or base.Boolean:
-        """
-        Use this method to edit live location messages sent by the bot or via the bot (for inline bots). 
-        A location can be edited until its live_period expires or editing is explicitly disabled by a call 
-        to stopMessageLiveLocation.
-
-        Source: https://core.telegram.org/bots/api#editmessagelivelocation
-
-        :param chat_id: Required if inline_message_id is not specified. 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :param latitude: Latitude of new location
-        :type latitude: :obj:`base.Float`
-        :param longitude: Longitude of new location
-        :type longitude: :obj:`base.Float`
-        :param reply_markup: A JSON-serialized object for a new inline keyboard.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, if the edited message was sent by the bot, the edited Message is returned, 
-            otherwise True is returned.
-        :rtype: :obj:`typing.Union[types.Message, base.Boolean]`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.EDIT_MESSAGE_LIVE_LOCATION, payload)
-
-        if isinstance(result, bool):
-            return result
-
-        return types.Message(**result)
-
-    async def stop_message_live_location(self,
-                                         chat_id: typing.Union[base.Integer, base.String, None] = None,
-                                         message_id: typing.Union[base.Integer, None] = None,
-                                         inline_message_id: typing.Union[base.String, None] = None,
-                                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                                    None] = None) -> types.Message or base.Boolean:
-        """
-        Use this method to stop updating a live location message sent by the bot or via the bot 
-        (for inline bots) before live_period expires. 
-
-        Source: https://core.telegram.org/bots/api#stopmessagelivelocation
-
-        :param chat_id: Required if inline_message_id is not specified. 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :param reply_markup: A JSON-serialized object for a new inline keyboard.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, if the message was sent by the bot, the sent Message is returned, 
-            otherwise True is returned.
-        :rtype: :obj:`typing.Union[types.Message, base.Boolean]`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.STOP_MESSAGE_LIVE_LOCATION, payload)
-
-        if isinstance(result, bool):
-            return result
-
-        return types.Message(**result)
-
-    async def send_venue(self, chat_id: typing.Union[base.Integer, base.String],
-                         latitude: base.Float, longitude: base.Float, title: base.String, address: base.String,
-                         foursquare_id: typing.Union[base.String, None] = None,
-                         disable_notification: typing.Union[base.Boolean, None] = None,
-                         reply_to_message_id: typing.Union[base.Integer, None] = None,
-                         reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                    types.ReplyKeyboardMarkup,
-                                                    types.ReplyKeyboardRemove,
-                                                    types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send information about a venue.
-
-        Source: https://core.telegram.org/bots/api#sendvenue
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param latitude: Latitude of the venue
-        :type latitude: :obj:`base.Float`
-        :param longitude: Longitude of the venue
-        :type longitude: :obj:`base.Float`
-        :param title: Name of the venue
-        :type title: :obj:`base.String`
-        :param address: Address of the venue
-        :type address: :obj:`base.String`
-        :param foursquare_id: Foursquare identifier of the venue
-        :type foursquare_id: :obj:`typing.Union[base.String, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, 
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SEND_VENUE, payload)
-
-        return types.Message(**result)
-
-    async def send_contact(self, chat_id: typing.Union[base.Integer, base.String],
-                           phone_number: base.String,
-                           first_name: base.String, last_name: typing.Union[base.String, None] = None,
-                           disable_notification: typing.Union[base.Boolean, None] = None,
-                           reply_to_message_id: typing.Union[base.Integer, None] = None,
-                           reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                      types.ReplyKeyboardMarkup,
-                                                      types.ReplyKeyboardRemove,
-                                                      types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send phone contacts.
-
-        Source: https://core.telegram.org/bots/api#sendcontact
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param phone_number: Contact's phone number
-        :type phone_number: :obj:`base.String`
-        :param first_name: Contact's first name
-        :type first_name: :obj:`base.String`
-        :param last_name: Contact's last name
-        :type last_name: :obj:`typing.Union[base.String, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, 
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SEND_CONTACT, payload)
-
-        return types.Message(**result)
-
-    async def send_chat_action(self, chat_id: typing.Union[base.Integer, base.String],
-                               action: base.String) -> base.Boolean:
-        """
-        Use this method when you need to tell the user that something is happening on the bot's side. 
-        The status is set for 5 seconds or less 
-        (when a message arrives from your bot, Telegram clients clear its typing status).
+  <a href="/jirinovak"><span class="discussion-item-entity">jirinovak</span></a>, 
         
-        We only recommend using this method when a response from the bot will take 
-        a noticeable amount of time to arrive.
-
-        Source: https://core.telegram.org/bots/api#sendchataction
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param action: Type of action to broadcast.
-        :type action: :obj:`base.String`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SEND_CHAT_ACTION, payload)
-
-        return result
-
-    async def get_user_profile_photos(self, user_id: base.Integer, offset: typing.Union[base.Integer, None] = None,
-                                      limit: typing.Union[base.Integer, None] = None) -> types.UserProfilePhotos:
-        """
-        Use this method to get a list of profile pictures for a user. Returns a UserProfilePhotos object.
-
-        Source: https://core.telegram.org/bots/api#getuserprofilephotos
-
-        :param user_id: Unique identifier of the target user
-        :type user_id: :obj:`base.Integer`
-        :param offset: Sequential number of the first photo to be returned. By default, all photos are returned.
-        :type offset: :obj:`typing.Union[base.Integer, None]`
-        :param limit: Limits the number of photos to be retrieved. Values between 1—100 are accepted. Defaults to 100.
-        :type limit: :obj:`typing.Union[base.Integer, None]`
-        :return: Returns a UserProfilePhotos object.
-        :rtype: :obj:`types.UserProfilePhotos`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_USER_PROFILE_PHOTOS, payload)
-
-        return types.UserProfilePhotos(**result)
-
-    async def get_file(self, file_id: base.String) -> types.File:
-        """
-        Use this method to get basic info about a file and prepare it for downloading. 
-        For the moment, bots can download files of up to 20MB in size. 
-
-        Note: This function may not preserve the original file name and MIME type. 
-        You should save the file's MIME type and name (if available) when the File object is received.
-
-        Source: https://core.telegram.org/bots/api#getfile
-
-        :param file_id: File identifier to get info about
-        :type file_id: :obj:`base.String`
-        :return: On success, a File object is returned.
-        :rtype: :obj:`types.File`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_FILE, payload)
-
-        return types.File(**result)
-
-    async def kick_chat_member(self, chat_id: typing.Union[base.Integer, base.String], user_id: base.Integer,
-                               until_date: typing.Union[base.Integer, None] = None) -> base.Boolean:
-        """
-        Use this method to kick a user from a group, a supergroup or a channel. 
-        In the case of supergroups and channels, the user will not be able to return to the group 
-        on their own using invite links, etc., unless unbanned first.
-         
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights. 
-
-        Note: In regular groups (non-supergroups), this method will only work if the ‘All Members Are Admins’ setting 
-        is off in the target group. 
-        Otherwise members may only be removed by the group's creator or by the member that added them.
-
-        Source: https://core.telegram.org/bots/api#kickchatmember
-
-        :param chat_id: Unique identifier for the target group or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param user_id: Unique identifier of the target user
-        :type user_id: :obj:`base.Integer`
-        :param until_date: Date when the user will be unbanned, unix time.
-        :type until_date: :obj:`typing.Union[base.Integer, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        until_date = prepare_arg(until_date)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.KICK_CHAT_MEMBER, payload)
-
-        return result
-
-    async def unban_chat_member(self, chat_id: typing.Union[base.Integer, base.String],
-                                user_id: base.Integer) -> base.Boolean:
-        """
-        Use this method to unban a previously kicked user in a supergroup or channel. `
-        The user will not return to the group or channel automatically, but will be able to join via link, etc. 
+  <a href="/legendik"><span class="discussion-item-entity">legendik</span></a>, 
         
-        The bot must be an administrator for this to work.
-
-        Source: https://core.telegram.org/bots/api#unbanchatmember
-
-        :param chat_id: Unique identifier for the target group or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param user_id: Unique identifier of the target user
-        :type user_id: :obj:`base.Integer`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.UNBAN_CHAT_MEMBER, payload)
-
-        return result
-
-    async def restrict_chat_member(self, chat_id: typing.Union[base.Integer, base.String],
-                                   user_id: base.Integer,
-                                   until_date: typing.Union[base.Integer, None] = None,
-                                   can_send_messages: typing.Union[base.Boolean, None] = None,
-                                   can_send_media_messages: typing.Union[base.Boolean, None] = None,
-                                   can_send_other_messages: typing.Union[base.Boolean, None] = None,
-                                   can_add_web_page_previews: typing.Union[base.Boolean, None] = None) -> base.Boolean:
-        """
-        Use this method to restrict a user in a supergroup. 
-        The bot must be an administrator in the supergroup for this to work and must have the appropriate admin rights. 
-        Pass True for all boolean parameters to lift restrictions from a user.
-
-        Source: https://core.telegram.org/bots/api#restrictchatmember
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param user_id: Unique identifier of the target user
-        :type user_id: :obj:`base.Integer`
-        :param until_date: Date when restrictions will be lifted for the user, unix time.
-        :type until_date: :obj:`typing.Union[base.Integer, None]`
-        :param can_send_messages: Pass True, if the user can send text messages, contacts, locations and venues
-        :type can_send_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_send_media_messages: Pass True, if the user can send audios, documents, photos, videos, 
-            video notes and voice notes, implies can_send_messages
-        :type can_send_media_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_send_other_messages: Pass True, if the user can send animations, games, stickers and 
-            use inline bots, implies can_send_media_messages
-        :type can_send_other_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_add_web_page_previews: Pass True, if the user may add web page previews to their messages, 
-            implies can_send_media_messages
-        :type can_add_web_page_previews: :obj:`typing.Union[base.Boolean, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        until_date = prepare_arg(until_date)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.RESTRICT_CHAT_MEMBER, payload)
-
-        return result
-
-    async def promote_chat_member(self, chat_id: typing.Union[base.Integer, base.String],
-                                  user_id: base.Integer,
-                                  can_change_info: typing.Union[base.Boolean, None] = None,
-                                  can_post_messages: typing.Union[base.Boolean, None] = None,
-                                  can_edit_messages: typing.Union[base.Boolean, None] = None,
-                                  can_delete_messages: typing.Union[base.Boolean, None] = None,
-                                  can_invite_users: typing.Union[base.Boolean, None] = None,
-                                  can_restrict_members: typing.Union[base.Boolean, None] = None,
-                                  can_pin_messages: typing.Union[base.Boolean, None] = None,
-                                  can_promote_members: typing.Union[base.Boolean, None] = None) -> base.Boolean:
-        """
-        Use this method to promote or demote a user in a supergroup or a channel. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights. 
-        Pass False for all boolean parameters to demote a user.
-
-        Source: https://core.telegram.org/bots/api#promotechatmember
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param user_id: Unique identifier of the target user
-        :type user_id: :obj:`base.Integer`
-        :param can_change_info: Pass True, if the administrator can change chat title, photo and other settings
-        :type can_change_info: :obj:`typing.Union[base.Boolean, None]`
-        :param can_post_messages: Pass True, if the administrator can create channel posts, channels only
-        :type can_post_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_edit_messages: Pass True, if the administrator can edit messages of other users, channels only
-        :type can_edit_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_delete_messages: Pass True, if the administrator can delete messages of other users
-        :type can_delete_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_invite_users: Pass True, if the administrator can invite new users to the chat
-        :type can_invite_users: :obj:`typing.Union[base.Boolean, None]`
-        :param can_restrict_members: Pass True, if the administrator can restrict, ban or unban chat members
-        :type can_restrict_members: :obj:`typing.Union[base.Boolean, None]`
-        :param can_pin_messages: Pass True, if the administrator can pin messages, supergroups only
-        :type can_pin_messages: :obj:`typing.Union[base.Boolean, None]`
-        :param can_promote_members: Pass True, if the administrator can add new administrators 
-            with a subset of his own privileges or demote administrators that he has promoted, 
-            directly or indirectly (promoted by administrators that were appointed by him)
-        :type can_promote_members: :obj:`typing.Union[base.Boolean, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.PROMOTE_CHAT_MEMBER, payload)
-
-        return result
-
-    async def export_chat_invite_link(self, chat_id: typing.Union[base.Integer, base.String]) -> base.String:
-        """
-        Use this method to generate a new invite link for a chat; any previously generated link is revoked.
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
-
-        Source: https://core.telegram.org/bots/api#exportchatinvitelink
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns exported invite link as String on success.
-        :rtype: :obj:`base.String`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.EXPORT_CHAT_INVITE_LINK, payload)
-
-        return result
-
-    async def set_chat_photo(self, chat_id: typing.Union[base.Integer, base.String],
-                             photo: base.InputFile) -> base.Boolean:
-        """
-        Use this method to set a new profile photo for the chat. Photos can't be changed for private chats. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
+  <a href="/MortalFlesh"><span class="discussion-item-entity">MortalFlesh</span></a>, 
         
-        Note: In regular groups (non-supergroups), this method will only work if the ‘All Members Are Admins’ 
-        setting is off in the target group.
-
-        Source: https://core.telegram.org/bots/api#setchatphoto
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param photo: New chat photo, uploaded using multipart/form-data
-        :type photo: :obj:`base.InputFile`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals(), exclude=['photo'])
-        result = await self.send_file('photo', api.Methods.SET_CHAT_PHOTO, photo, payload)
-
-        return result
-
-    async def delete_chat_photo(self, chat_id: typing.Union[base.Integer, base.String]) -> base.Boolean:
-        """
-        Use this method to delete a chat photo. Photos can't be changed for private chats. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
-
-        Note: In regular groups (non-supergroups), this method will only work if the ‘All Members Are Admins’ 
-        setting is off in the target group.
-
-        Source: https://core.telegram.org/bots/api#deletechatphoto
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.DELETE_CHAT_PHOTO, payload)
-
-        return result
-
-    async def set_chat_title(self, chat_id: typing.Union[base.Integer, base.String],
-                             title: base.String) -> base.Boolean:
-        """
-        Use this method to change the title of a chat. Titles can't be changed for private chats. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
+  <a href="/davidkmenta"><span class="discussion-item-entity">davidkmenta</span></a>, 
         
-        Note: In regular groups (non-supergroups), this method will only work if the ‘All Members Are Admins’ 
-        setting is off in the target group.
-
-        Source: https://core.telegram.org/bots/api#setchattitle
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param title: New chat title, 1-255 characters
-        :type title: :obj:`base.String`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SET_CHAT_TITLE, payload)
-
-        return result
-
-    async def set_chat_description(self, chat_id: typing.Union[base.Integer, base.String],
-                                   description: typing.Union[base.String, None] = None) -> base.Boolean:
-        """
-        Use this method to change the description of a supergroup or a channel. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
-
-        Source: https://core.telegram.org/bots/api#setchatdescription
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param description: New chat description, 0-255 characters
-        :type description: :obj:`typing.Union[base.String, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SET_CHAT_DESCRIPTION, payload)
-
-        return result
-
-    async def pin_chat_message(self, chat_id: typing.Union[base.Integer, base.String], message_id: base.Integer,
-                               disable_notification: typing.Union[base.Boolean, None] = None) -> base.Boolean:
-        """
-        Use this method to pin a message in a supergroup. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
-
-        Source: https://core.telegram.org/bots/api#pinchatmessage
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param message_id: Identifier of a message to pin
-        :type message_id: :obj:`base.Integer`
-        :param disable_notification: Pass True, if it is not necessary to send a notification to 
-            all group members about the new pinned message
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.PIN_CHAT_MESSAGE, payload)
-
-        return result
-
-    async def unpin_chat_message(self, chat_id: typing.Union[base.Integer, base.String]) -> base.Boolean:
-        """
-        Use this method to unpin a message in a supergroup chat. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights.
-
-        Source: https://core.telegram.org/bots/api#unpinchatmessage
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.UNPIN_CHAT_MESSAGE, payload)
-
-        return result
-
-    async def leave_chat(self, chat_id: typing.Union[base.Integer, base.String]) -> base.Boolean:
-        """
-        Use this method for your bot to leave a group, supergroup or channel.
-
-        Source: https://core.telegram.org/bots/api#leavechat
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.LEAVE_CHAT, payload)
-
-        return result
-
-    async def get_chat(self, chat_id: typing.Union[base.Integer, base.String]) -> types.Chat:
-        """
-        Use this method to get up to date information about the chat 
-        (current name of the user for one-on-one conversations, current username of a user, group or channel, etc.).
-
-        Source: https://core.telegram.org/bots/api#getchat
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns a Chat object on success.
-        :rtype: :obj:`types.Chat`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_CHAT, payload)
-
-        return types.Chat(**result)
-
-    async def get_chat_administrators(self, chat_id: typing.Union[base.Integer, base.String]
-                                      ) -> typing.List[types.ChatMember]:
-        """
-        Use this method to get a list of administrators in a chat.
-
-        Source: https://core.telegram.org/bots/api#getchatadministrators
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: On success, returns an Array of ChatMember objects that contains information about all 
-            chat administrators except other bots. 
-            If the chat is a group or a supergroup and no administrators were appointed, 
-            only the creator will be returned.
-        :rtype: :obj:`typing.List[types.ChatMember]`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_CHAT_ADMINISTRATORS, payload)
-
-        return [types.ChatMember(**chatmember) for chatmember in result]
-
-    async def get_chat_members_count(self, chat_id: typing.Union[base.Integer, base.String]) -> base.Integer:
-        """
-        Use this method to get the number of members in a chat.
-
-        Source: https://core.telegram.org/bots/api#getchatmemberscount
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns Int on success.
-        :rtype: :obj:`base.Integer`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_CHAT_MEMBERS_COUNT, payload)
-
-        return result
-
-    async def get_chat_member(self, chat_id: typing.Union[base.Integer, base.String],
-                              user_id: base.Integer) -> types.ChatMember:
-        """
-        Use this method to get information about a member of a chat.
-
-        Source: https://core.telegram.org/bots/api#getchatmember
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup or channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param user_id: Unique identifier of the target user
-        :type user_id: :obj:`base.Integer`
-        :return: Returns a ChatMember object on success.
-        :rtype: :obj:`types.ChatMember`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_CHAT_MEMBER, payload)
-
-        return types.ChatMember(**result)
-
-    async def set_chat_sticker_set(self, chat_id: typing.Union[base.Integer, base.String],
-                                   sticker_set_name: base.String) -> base.Boolean:
-        """
-        Use this method to set a new group sticker set for a supergroup. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights. 
+  <a href="/kdosiodjinud"><span class="discussion-item-entity">kdosiodjinud</span></a>, 
         
-        Use the field can_set_sticker_set optionally returned in getChat requests to check 
-        if the bot can use this method.
-
-        Source: https://core.telegram.org/bots/api#setchatstickerset
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param sticker_set_name: Name of the sticker set to be set as the group sticker set
-        :type sticker_set_name: :obj:`base.String`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SET_CHAT_STICKER_SET, payload)
-
-        return result
-
-    async def delete_chat_sticker_set(self, chat_id: typing.Union[base.Integer, base.String]) -> base.Boolean:
-        """
-        Use this method to delete a group sticker set from a supergroup. 
-        The bot must be an administrator in the chat for this to work and must have the appropriate admin rights. 
+  <a href="/MartinKristof"><span class="discussion-item-entity">MartinKristof</span></a>, 
         
-        Use the field can_set_sticker_set optionally returned in getChat requests 
-        to check if the bot can use this method.
-
-        Source: https://core.telegram.org/bots/api#deletechatstickerset
-
-        :param chat_id: Unique identifier for the target chat or username of the target supergroup
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.DELETE_CHAT_STICKER_SET, payload)
-
-        return result
-
-    async def answer_callback_query(self, callback_query_id: base.String, text: typing.Union[base.String, None] = None,
-                                    show_alert: typing.Union[base.Boolean, None] = None,
-                                    url: typing.Union[base.String, None] = None,
-                                    cache_time: typing.Union[base.Integer, None] = None) -> base.Boolean:
-        """
-        Use this method to send answers to callback queries sent from inline keyboards.
-        The answer will be displayed to the user as a notification at the top of the chat screen or as an alert.
-
-        Alternatively, the user can be redirected to the specified Game URL. 
-        For this option to work, you must first create a game for your bot via @Botfather and accept the terms. 
-        Otherwise, you may use links like t.me/your_bot?start=XXXX that open your bot with a parameter.
-
-        Source: https://core.telegram.org/bots/api#answercallbackquery
-
-        :param callback_query_id: Unique identifier for the query to be answered
-        :type callback_query_id: :obj:`base.String`
-        :param text: Text of the notification. If not specified, nothing will be shown to the user, 0-200 characters
-        :type text: :obj:`typing.Union[base.String, None]`
-        :param show_alert: If true, an alert will be shown by the client instead of a notification 
-            at the top of the chat screen. Defaults to false.
-        :type show_alert: :obj:`typing.Union[base.Boolean, None]`
-        :param url: URL that will be opened by the user's client. 
-        :type url: :obj:`typing.Union[base.String, None]`
-        :param cache_time: The maximum amount of time in seconds that the 
-            result of the callback query may be cached client-side.
-        :type cache_time: :obj:`typing.Union[base.Integer, None]`
-        :return: On success, True is returned.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.ANSWER_CALLBACK_QUERY, payload)
-
-        return result
-
-    async def edit_message_text(self, text: base.String,
-                                chat_id: typing.Union[base.Integer, base.String, None] = None,
-                                message_id: typing.Union[base.Integer, None] = None,
-                                inline_message_id: typing.Union[base.String, None] = None,
-                                parse_mode: typing.Union[base.String, None] = None,
-                                disable_web_page_preview: typing.Union[base.Boolean, None] = None,
-                                reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                           None] = None) -> types.Message or base.Boolean:
-        """
-        Use this method to edit text and game messages sent by the bot or via the bot (for inline bots).
-
-        Source: https://core.telegram.org/bots/api#editmessagetext
-
-        :param chat_id: Required if inline_message_id is not specified. 
-            Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :param text: New text of the message
-        :type text: :obj:`base.String`
-        :param parse_mode: Send Markdown or HTML, if you want Telegram apps to show bold, italic, 
-            fixed-width text or inline URLs in your bot's message.
-        :type parse_mode: :obj:`typing.Union[base.String, None]`
-        :param disable_web_page_preview: Disables link previews for links in this message
-        :type disable_web_page_preview: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_markup: A JSON-serialized object for an inline keyboard.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, if edited message is sent by the bot, 
-            the edited Message is returned, otherwise True is returned.
-        :rtype: :obj:`typing.Union[types.Message, base.Boolean]`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        if self.parse_mode:
-            payload.setdefault('parse_mode', self.parse_mode)
-
-        result = await self.request(api.Methods.EDIT_MESSAGE_TEXT, payload)
-
-        if isinstance(result, bool):
-            return result
-
-        return types.Message(**result)
-
-    async def edit_message_caption(self, chat_id: typing.Union[base.Integer, base.String, None] = None,
-                                   message_id: typing.Union[base.Integer, None] = None,
-                                   inline_message_id: typing.Union[base.String, None] = None,
-                                   caption: typing.Union[base.String, None] = None,
-                                   reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                              None] = None) -> types.Message or base.Boolean:
-        """
-        Use this method to edit captions of messages sent by the bot or via the bot (for inline bots).
-
-        Source: https://core.telegram.org/bots/api#editmessagecaption
-
-        :param chat_id: Required if inline_message_id is not specified.
-            Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :param caption: New caption of the message
-        :type caption: :obj:`typing.Union[base.String, None]`
-        :param reply_markup: A JSON-serialized object for an inline keyboard.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, if edited message is sent by the bot, the edited Message is returned, 
-            otherwise True is returned.
-        :rtype: :obj:`typing.Union[types.Message, base.Boolean]`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.EDIT_MESSAGE_CAPTION, payload)
-
-        if isinstance(result, bool):
-            return result
-
-        return types.Message(**result)
-
-    async def edit_message_reply_markup(self,
-                                        chat_id: typing.Union[base.Integer, base.String, None] = None,
-                                        message_id: typing.Union[base.Integer, None] = None,
-                                        inline_message_id: typing.Union[base.String, None] = None,
-                                        reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                                   None] = None) -> types.Message or base.Boolean:
-        """
-        Use this method to edit only the reply markup of messages sent by the bot or via the bot (for inline bots).
-
-        Source: https://core.telegram.org/bots/api#editmessagereplymarkup
-
-        :param chat_id: Required if inline_message_id is not specified. 
-            Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :param reply_markup: A JSON-serialized object for an inline keyboard.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, if edited message is sent by the bot, the edited Message is returned, 
-            otherwise True is returned.
-        :rtype: :obj:`typing.Union[types.Message, base.Boolean]`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.EDIT_MESSAGE_REPLY_MARKUP, payload)
-
-        if isinstance(result, bool):
-            return result
-
-        return types.Message(**result)
-
-    async def delete_message(self, chat_id: typing.Union[base.Integer, base.String],
-                             message_id: base.Integer) -> base.Boolean:
-        """
-        Use this method to delete a message, including service messages, with the following limitations
-        - A message can only be deleted if it was sent less than 48 hours ago.
-        - Bots can delete outgoing messages in groups and supergroups.
-        - Bots granted can_post_messages permissions can delete outgoing messages in channels.
-        - If the bot is an administrator of a group, it can delete any message there.
-        - If the bot has can_delete_messages permission in a supergroup or a channel, it can delete any message there.
-
-        The following methods and objects allow your bot to handle stickers and sticker sets.
-
-        Source: https://core.telegram.org/bots/api#deletemessage
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param message_id: Identifier of the message to delete
-        :type message_id: :obj:`base.Integer`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.DELETE_MESSAGE, payload)
-
-        return result
-
-    # === Stickers ===
-    # https://core.telegram.org/bots/api#stickers
-
-    async def send_sticker(self, chat_id: typing.Union[base.Integer, base.String],
-                           sticker: typing.Union[base.InputFile, base.String],
-                           disable_notification: typing.Union[base.Boolean, None] = None,
-                           reply_to_message_id: typing.Union[base.Integer, None] = None,
-                           reply_markup: typing.Union[types.InlineKeyboardMarkup,
-                                                      types.ReplyKeyboardMarkup,
-                                                      types.ReplyKeyboardRemove,
-                                                      types.ForceReply, None] = None) -> types.Message:
-        """
-        Use this method to send .webp stickers.
-
-        Source: https://core.telegram.org/bots/api#sendsticker
-
-        :param chat_id: Unique identifier for the target chat or username of the target channel 
-        :type chat_id: :obj:`typing.Union[base.Integer, base.String]`
-        :param sticker: Sticker to send.
-        :type sticker: :obj:`typing.Union[base.InputFile, base.String]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: Additional interface options.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup,
-            types.ReplyKeyboardMarkup, types.ReplyKeyboardRemove, types.ForceReply, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals(), exclude=['sticker'])
-        result = await self.send_file('sticker', api.Methods.SEND_STICKER, sticker, payload)
-
-        return types.Message(**result)
-
-    async def get_sticker_set(self, name: base.String) -> types.StickerSet:
-        """
-        Use this method to get a sticker set.
-
-        Source: https://core.telegram.org/bots/api#getstickerset
-
-        :param name: Name of the sticker set
-        :type name: :obj:`base.String`
-        :return: On success, a StickerSet object is returned.
-        :rtype: :obj:`types.StickerSet`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_STICKER_SET, payload)
-
-        return types.StickerSet(**result)
-
-    async def upload_sticker_file(self, user_id: base.Integer, png_sticker: base.InputFile) -> types.File:
-        """
-        Use this method to upload a .png file with a sticker for later use in createNewStickerSet
-        and addStickerToSet methods (can be used multiple times).
-
-        Source: https://core.telegram.org/bots/api#uploadstickerfile
-
-        :param user_id: User identifier of sticker file owner
-        :type user_id: :obj:`base.Integer`
-        :param png_sticker: Png image with the sticker, must be up to 512 kilobytes in size,
-            dimensions must not exceed 512px, and either width or height must be exactly 512px.
-        :type png_sticker: :obj:`base.InputFile`
-        :return: Returns the uploaded File on success.
-        :rtype: :obj:`types.File`
-        """
-        payload = generate_payload(**locals(), exclude=['png_sticker'])
-        result = await self.send_file('png_sticker', api.Methods.UPLOAD_STICKER_FILE, png_sticker, payload)
-
-        return types.File(**result)
-
-    async def create_new_sticker_set(self, user_id: base.Integer, name: base.String, title: base.String,
-                                     png_sticker: typing.Union[base.InputFile, base.String], emojis: base.String,
-                                     contains_masks: typing.Union[base.Boolean, None] = None,
-                                     mask_position: typing.Union[types.MaskPosition, None] = None) -> base.Boolean:
-        """
-        Use this method to create new sticker set owned by a user. The bot will be able to edit the created sticker set.
-
-        Source: https://core.telegram.org/bots/api#createnewstickerset
-
-        :param user_id: User identifier of created sticker set owner
-        :type user_id: :obj:`base.Integer`
-        :param name: Short name of sticker set, to be used in t.me/addstickers/ URLs (e.g., animals).
-        :type name: :obj:`base.String`
-        :param title: Sticker set title, 1-64 characters
-        :type title: :obj:`base.String`
-        :param png_sticker: Png image with the sticker, must be up to 512 kilobytes in size,
-            dimensions must not exceed 512px, and either width or height must be exactly 512px.
-        :type png_sticker: :obj:`typing.Union[base.InputFile, base.String]`
-        :param emojis: One or more emoji corresponding to the sticker
-        :type emojis: :obj:`base.String`
-        :param contains_masks: Pass True, if a set of mask stickers should be created
-        :type contains_masks: :obj:`typing.Union[base.Boolean, None]`
-        :param mask_position: A JSON-serialized object for position where the mask should be placed on faces
-        :type mask_position: :obj:`typing.Union[types.MaskPosition, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        mask_position = prepare_arg(mask_position)
-        payload = generate_payload(**locals(), exclude=['png_sticker'])
-        result = await self.send_file('png_sticker', api.Methods.CREATE_NEW_STICKER_SET, png_sticker, payload)
-
-        return result
-
-    async def add_sticker_to_set(self, user_id: base.Integer, name: base.String,
-                                 png_sticker: typing.Union[base.InputFile, base.String], emojis: base.String,
-                                 mask_position: typing.Union[types.MaskPosition, None] = None) -> base.Boolean:
-        """
-        Use this method to add a new sticker to a set created by the bot.
-
-        Source: https://core.telegram.org/bots/api#addstickertoset
-
-        :param user_id: User identifier of sticker set owner
-        :type user_id: :obj:`base.Integer`
-        :param name: Sticker set name
-        :type name: :obj:`base.String`
-        :param png_sticker: Png image with the sticker, must be up to 512 kilobytes in size,
-            dimensions must not exceed 512px, and either width or height must be exactly 512px.
-        :type png_sticker: :obj:`typing.Union[base.InputFile, base.String]`
-        :param emojis: One or more emoji corresponding to the sticker
-        :type emojis: :obj:`base.String`
-        :param mask_position: A JSON-serialized object for position where the mask should be placed on faces
-        :type mask_position: :obj:`typing.Union[types.MaskPosition, None]`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        mask_position = prepare_arg(mask_position)
-        payload = generate_payload(**locals(), exclude=['png_sticker'])
-        result = await self.send_file('png_sticker', api.Methods.ADD_STICKER_TO_SET, png_sticker, payload)
-
-        return result
-
-    async def set_sticker_position_in_set(self, sticker: base.String, position: base.Integer) -> base.Boolean:
-        """
-        Use this method to move a sticker in a set created by the bot to a specific position.
-
-        Source: https://core.telegram.org/bots/api#setstickerpositioninset
-
-        :param sticker: File identifier of the sticker
-        :type sticker: :obj:`base.String`
-        :param position: New sticker position in the set, zero-based
-        :type position: :obj:`base.Integer`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SET_STICKER_POSITION_IN_SET, payload)
-
-        return result
-
-    async def delete_sticker_from_set(self, sticker: base.String) -> base.Boolean:
-        """
-        Use this method to delete a sticker from a set created by the bot.
-
-        The following methods and objects allow your bot to work in inline mode.
-
-        Source: https://core.telegram.org/bots/api#deletestickerfromset
-
-        :param sticker: File identifier of the sticker
-        :type sticker: :obj:`base.String`
-        :return: Returns True on success.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.DELETE_STICKER_FROM_SET, payload)
-
-        return result
-
-    async def answer_inline_query(self, inline_query_id: base.String, results: typing.List[types.InlineQueryResult],
-                                  cache_time: typing.Union[base.Integer, None] = None,
-                                  is_personal: typing.Union[base.Boolean, None] = None,
-                                  next_offset: typing.Union[base.String, None] = None,
-                                  switch_pm_text: typing.Union[base.String, None] = None,
-                                  switch_pm_parameter: typing.Union[base.String, None] = None) -> base.Boolean:
-        """
-        Use this method to send answers to an inline query.
-        No more than 50 results per query are allowed.
-
-        Source: https://core.telegram.org/bots/api#answerinlinequery
-
-        :param inline_query_id: Unique identifier for the answered query
-        :type inline_query_id: :obj:`base.String`
-        :param results: A JSON-serialized array of results for the inline query
-        :type results: :obj:`typing.List[types.InlineQueryResult]`
-        :param cache_time: The maximum amount of time in seconds that the result of the
-            inline query may be cached on the server. Defaults to 300.
-        :type cache_time: :obj:`typing.Union[base.Integer, None]`
-        :param is_personal: Pass True, if results may be cached on the server side only
-            for the user that sent the query. By default, results may be returned to any user who sends the same query
-        :type is_personal: :obj:`typing.Union[base.Boolean, None]`
-        :param next_offset: Pass the offset that a client should send in the
-            next query with the same text to receive more results.
-            Pass an empty string if there are no more results or if you don‘t support pagination.
-            Offset length can’t exceed 64 bytes.
-        :type next_offset: :obj:`typing.Union[base.String, None]`
-        :param switch_pm_text: If passed, clients will display a button with specified text that
-            switches the user to a private chat with the bot and sends the bot a start message
-            with the parameter switch_pm_parameter
-        :type switch_pm_text: :obj:`typing.Union[base.String, None]`
-        :param switch_pm_parameter: Deep-linking parameter for the /start message sent to the bot when
-            user presses the switch button. 1-64 characters, only A-Z, a-z, 0-9, _ and - are allowed.
-        :type switch_pm_parameter: :obj:`typing.Union[base.String, None]`
-        :return: On success, True is returned.
-        :rtype: :obj:`base.Boolean`
-        """
-        results = prepare_arg(results)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.ANSWER_INLINE_QUERY, payload)
-
-        return result
-
-    # === Payments ===
-    # https://core.telegram.org/bots/api#payments
-
-    async def send_invoice(self, chat_id: base.Integer, title: base.String, description: base.String,
-                           payload: base.String, provider_token: base.String, start_parameter: base.String,
-                           currency: base.String, prices: typing.List[types.LabeledPrice],
-                           provider_data: typing.Union[typing.Dict, None] = None,
-                           photo_url: typing.Union[base.String, None] = None,
-                           photo_size: typing.Union[base.Integer, None] = None,
-                           photo_width: typing.Union[base.Integer, None] = None,
-                           photo_height: typing.Union[base.Integer, None] = None,
-                           need_name: typing.Union[base.Boolean, None] = None,
-                           need_phone_number: typing.Union[base.Boolean, None] = None,
-                           need_email: typing.Union[base.Boolean, None] = None,
-                           need_shipping_address: typing.Union[base.Boolean, None] = None,
-                           is_flexible: typing.Union[base.Boolean, None] = None,
-                           disable_notification: typing.Union[base.Boolean, None] = None,
-                           reply_to_message_id: typing.Union[base.Integer, None] = None,
-                           reply_markup: typing.Union[types.InlineKeyboardMarkup, None] = None) -> types.Message:
-        """
-        Use this method to send invoices.
-
-        Source: https://core.telegram.org/bots/api#sendinvoice
-
-        :param chat_id: Unique identifier for the target private chat
-        :type chat_id: :obj:`base.Integer`
-        :param title: Product name, 1-32 characters
-        :type title: :obj:`base.String`
-        :param description: Product description, 1-255 characters
-        :type description: :obj:`base.String`
-        :param payload: Bot-defined invoice payload, 1-128 bytes.
-            This will not be displayed to the user, use for your internal processes.
-        :type payload: :obj:`base.String`
-        :param provider_token: Payments provider token, obtained via Botfather
-        :type provider_token: :obj:`base.String`
-        :param start_parameter: Unique deep-linking parameter that can be used to generate this
-            invoice when used as a start parameter
-        :type start_parameter: :obj:`base.String`
-        :param currency: Three-letter ISO 4217 currency code, see more on currencies
-        :type currency: :obj:`base.String`
-        :param prices: Price breakdown, a list of components
-            (e.g. product price, tax, discount, delivery cost, delivery tax, bonus, etc.)
-        :type prices: :obj:`typing.List[types.LabeledPrice]`
-        :param provider_data: JSON-encoded data about the invoice, which will be shared with the payment provider.
-        :type provider_data: :obj:`typing.Union[typing.Dict, None]`
-        :param photo_url: URL of the product photo for the invoice.
-        :type photo_url: :obj:`typing.Union[base.String, None]`
-        :param photo_size: Photo size
-        :type photo_size: :obj:`typing.Union[base.Integer, None]`
-        :param photo_width: Photo width
-        :type photo_width: :obj:`typing.Union[base.Integer, None]`
-        :param photo_height: Photo height
-        :type photo_height: :obj:`typing.Union[base.Integer, None]`
-        :param need_name: Pass True, if you require the user's full name to complete the order
-        :type need_name: :obj:`typing.Union[base.Boolean, None]`
-        :param need_phone_number: Pass True, if you require the user's phone number to complete the order
-        :type need_phone_number: :obj:`typing.Union[base.Boolean, None]`
-        :param need_email: Pass True, if you require the user's email to complete the order
-        :type need_email: :obj:`typing.Union[base.Boolean, None]`
-        :param need_shipping_address: Pass True, if you require the user's shipping address to complete the order
-        :type need_shipping_address: :obj:`typing.Union[base.Boolean, None]`
-        :param is_flexible: Pass True, if the final price depends on the shipping method
-        :type is_flexible: :obj:`typing.Union[base.Boolean, None]`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: A JSON-serialized object for an inline keyboard.
-            If empty, one 'Pay total price' button will be shown. If not empty, the first button must be a Pay button.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        prices = prepare_arg([price.to_python() if hasattr(price, 'to_python') else price for price in prices])
-        reply_markup = prepare_arg(reply_markup)
-        payload_ = generate_payload(**locals())
-        result = await self.request(api.Methods.SEND_INVOICE, payload_)
-
-        return types.Message(**result)
-
-    async def answer_shipping_query(self, shipping_query_id: base.String, ok: base.Boolean,
-                                    shipping_options: typing.Union[typing.List[types.ShippingOption], None] = None,
-                                    error_message: typing.Union[base.String, None] = None) -> base.Boolean:
-        """
-        If you sent an invoice requesting a shipping address and the parameter is_flexible was specified,
-        the Bot API will send an Update with a shipping_query field to the bot.
-
-        Source: https://core.telegram.org/bots/api#answershippingquery
-
-        :param shipping_query_id: Unique identifier for the query to be answered
-        :type shipping_query_id: :obj:`base.String`
-        :param ok: Specify True if delivery to the specified address is possible and False if there are any problems
-            (for example, if delivery to the specified address is not possible)
-        :type ok: :obj:`base.Boolean`
-        :param shipping_options: Required if ok is True. A JSON-serialized array of available shipping options.
-        :type shipping_options: :obj:`typing.Union[typing.List[types.ShippingOption], None]`
-        :param error_message: Required if ok is False.
-            Error message in human readable form that explains why it is impossible to complete the order
-            (e.g. "Sorry, delivery to your desired address is unavailable').
-            Telegram will display this message to the user.
-        :type error_message: :obj:`typing.Union[base.String, None]`
-        :return: On success, True is returned.
-        :rtype: :obj:`base.Boolean`
-        """
-        if shipping_options:
-            shipping_options = prepare_arg([shipping_option.to_python()
-                                            if hasattr(shipping_option, 'to_python')
-                                            else shipping_option
-                                            for shipping_option in shipping_options])
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.ANSWER_SHIPPING_QUERY, payload)
-
-        return result
-
-    async def answer_pre_checkout_query(self, pre_checkout_query_id: base.String, ok: base.Boolean,
-                                        error_message: typing.Union[base.String, None] = None) -> base.Boolean:
-        """
-        Once the user has confirmed their payment and shipping details,
-        the Bot API sends the final confirmation in the form of an Update with the field pre_checkout_query.
-        Use this method to respond to such pre-checkout queries.
-
-        Source: https://core.telegram.org/bots/api#answerprecheckoutquery
-
-        :param pre_checkout_query_id: Unique identifier for the query to be answered
-        :type pre_checkout_query_id: :obj:`base.String`
-        :param ok: Specify True if everything is alright (goods are available, etc.) and the
-            bot is ready to proceed with the order. Use False if there are any problems.
-        :type ok: :obj:`base.Boolean`
-        :param error_message: Required if ok is False.
-            Error message in human readable form that explains the reason for failure to proceed with the checkout
-            (e.g. "Sorry, somebody just bought the last of our amazing black T-shirts while you were busy filling
-            out your payment details. Please choose a different color or garment!").
-            Telegram will display this message to the user.
-        :type error_message: :obj:`typing.Union[base.String, None]`
-        :return: On success, True is returned.
-        :rtype: :obj:`base.Boolean`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.ANSWER_PRE_CHECKOUT_QUERY, payload)
-
-        return result
-
-    # === Games ===
-    # https://core.telegram.org/bots/api#games
-
-    async def send_game(self, chat_id: base.Integer, game_short_name: base.String,
-                        disable_notification: typing.Union[base.Boolean, None] = None,
-                        reply_to_message_id: typing.Union[base.Integer, None] = None,
-                        reply_markup: typing.Union[types.InlineKeyboardMarkup, None] = None) -> types.Message:
-        """
-        Use this method to send a game.
-
-        Source: https://core.telegram.org/bots/api#sendgame
-
-        :param chat_id: Unique identifier for the target chat
-        :type chat_id: :obj:`base.Integer`
-        :param game_short_name: Short name of the game, serves as the unique identifier for the game. \
-            Set up your games via Botfather.
-        :type game_short_name: :obj:`base.String`
-        :param disable_notification: Sends the message silently. Users will receive a notification with no sound.
-        :type disable_notification: :obj:`typing.Union[base.Boolean, None]`
-        :param reply_to_message_id: If the message is a reply, ID of the original message
-        :type reply_to_message_id: :obj:`typing.Union[base.Integer, None]`
-        :param reply_markup: A JSON-serialized object for an inline keyboard.
-            If empty, one ‘Play game_title’ button will be shown. If not empty, the first button must launch the game.
-        :type reply_markup: :obj:`typing.Union[types.InlineKeyboardMarkup, None]`
-        :return: On success, the sent Message is returned.
-        :rtype: :obj:`types.Message`
-        """
-        reply_markup = prepare_arg(reply_markup)
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SEND_GAME, payload)
-
-        return types.Message(**result)
-
-    async def set_game_score(self, user_id: base.Integer, score: base.Integer,
-                             force: typing.Union[base.Boolean, None] = None,
-                             disable_edit_message: typing.Union[base.Boolean, None] = None,
-                             chat_id: typing.Union[base.Integer, None] = None,
-                             message_id: typing.Union[base.Integer, None] = None,
-                             inline_message_id: typing.Union[base.String,
-                                                             None] = None) -> types.Message or base.Boolean:
-        """
-        Use this method to set the score of the specified user in a game.
-
-        Source: https://core.telegram.org/bots/api#setgamescore
-
-        :param user_id: User identifier
-        :type user_id: :obj:`base.Integer`
-        :param score: New score, must be non-negative
-        :type score: :obj:`base.Integer`
-        :param force: Pass True, if the high score is allowed to decrease.
-            This can be useful when fixing mistakes or banning cheaters
-        :type force: :obj:`typing.Union[base.Boolean, None]`
-        :param disable_edit_message: Pass True, if the game message should not be automatically
-            edited to include the current scoreboard
-        :type disable_edit_message: :obj:`typing.Union[base.Boolean, None]`
-        :param chat_id: Required if inline_message_id is not specified. Unique identifier for the target chat
-        :type chat_id: :obj:`typing.Union[base.Integer, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :return: On success, if the message was sent by the bot, returns the edited Message, otherwise returns True.
-            Returns an error, if the new score is not greater than the user's
-            current score in the chat and force is False.
-        :rtype: :obj:`typing.Union[types.Message, base.Boolean]`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.SET_GAME_SCORE, payload)
-
-        if isinstance(result, bool):
-            return result
-
-        return types.Message(**result)
-
-    async def get_game_high_scores(self, user_id: base.Integer, chat_id: typing.Union[base.Integer, None] = None,
-                                   message_id: typing.Union[base.Integer, None] = None,
-                                   inline_message_id: typing.Union[base.String,
-                                                                   None] = None) -> typing.List[types.GameHighScore]:
-        """
-        Use this method to get data for high score tables.
-
-        This method will currently return scores for the target user, plus two of his closest neighbors on each side.
-        Will also return the top three users if the user and his neighbors are not among them.
-        Please note that this behavior is subject to change.
-
-        Source: https://core.telegram.org/bots/api#getgamehighscores
-
-        :param user_id: Target user id
-        :type user_id: :obj:`base.Integer`
-        :param chat_id: Required if inline_message_id is not specified. Unique identifier for the target chat
-        :type chat_id: :obj:`typing.Union[base.Integer, None]`
-        :param message_id: Required if inline_message_id is not specified. Identifier of the sent message
-        :type message_id: :obj:`typing.Union[base.Integer, None]`
-        :param inline_message_id: Required if chat_id and message_id are not specified. Identifier of the inline message
-        :type inline_message_id: :obj:`typing.Union[base.String, None]`
-        :return: Will return the score of the specified user and several of his neighbors in a game.
-            On success, returns an Array of GameHighScore objects.
-            This method will currently return scores for the target user,
-            plus two of his closest neighbors on each side. Will also return the top three users if the
-            user and his neighbors are not among them.
-        :rtype: :obj:`typing.List[types.GameHighScore]`
-        """
-        payload = generate_payload(**locals())
-        result = await self.request(api.Methods.GET_GAME_HIGH_SCORES, payload)
-
-        return [types.GameHighScore(**gamehighscore) for gamehighscore in result]
+  <a href="/MarketaFilipova"><span class="discussion-item-entity">MarketaFilipova</span></a>, 
+        
+  <a href="/Fantomas-7"><span class="discussion-item-entity">Fantomas-7</span></a>, 
+        
+  <a href="/tenerd"><span class="discussion-item-entity">tenerd</span></a>, 
+        
+  <a href="/dudla"><span class="discussion-item-entity">dudla</span></a>, 
+        
+  <a href="/hokypierce"><span class="discussion-item-entity">hokypierce</span></a> and 
+        
+  <a href="/florianjiri"><span class="discussion-item-entity">florianjiri</span></a>
+
+
+
+    <a href="#event-1526647182" class="timestamp"><relative-time datetime="2018-03-17T01:15:56Z">Mar 17, 2018</relative-time></a>
+
+  </h3>
+</div>
+
+
+
+
+</div>
+
+  
+<div class="js-timeline-item js-timeline-progressive-focus-container" data-gid="MDE3OlB1bGxSZXF1ZXN0Q29tbWl0MTc1Njc1Nzc1OjAzZGJkYmU5MWVkMGJjNjQzNDI1ZWRhNWQ2N2NmYjk4NjFjY2M2OTk=">
+    
+<div class="discussion-item discussion-commits" id="commits-pushed-03dbdbe">
+    <h3 class="discussion-item-header f5 text-normal">
+      <span class="discussion-item-icon">
+        <svg class="octicon octicon-repo-push" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M4 3H3V2h1v1zM3 5h1V4H3v1zm4 0L4 9h2v7h2V9h2L7 5zm4-5H1C.45 0 0 .45 0 1v12c0 .55.45 1 1 1h4v-1H1v-2h4v-1H2V1h9.02L11 10H9v1h2v2H9v1h2c.55 0 1-.45 1-1V1c0-.55-.45-1-1-1z"/></svg>
+      </span>
+      
+  <a href="/OndraM" class="author">OndraM</a>
+
+      added some commits
+      <a href="#commits-pushed-03dbdbe" class="timestamp">
+        <relative-time datetime="2018-03-16T22:09:24Z">Mar 16, 2018</relative-time>
+      </a>
+    </h3>
+  <div class="discussion-item-body">
+    <div class="timeline-commits ">
+        
+
+<div class="commit js-details-container Details js-socket-channel js-updatable-content no-wrap d-flex mb-2"
+     data-channel="repo:125386379:commit:03dbdbe91ed0bc643425eda5d67cfb9861ccc699"
+     data-url="/_render_node/MDE3OlB1bGxSZXF1ZXN0Q29tbWl0MTc1Njc1Nzc1OjAzZGJkYmU5MWVkMGJjNjQzNDI1ZWRhNWQ2N2NmYjk4NjFjY2M2OTk=/commit/pull_condensed">
+
+  <div class="commit-icon mr-3">
+    <svg class="octicon octicon-git-commit" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10.86 7c-.45-1.72-2-3-3.86-3-1.86 0-3.41 1.28-3.86 3H0v2h3.14c.45 1.72 2 3 3.86 3 1.86 0 3.41-1.28 3.86-3H14V7h-3.14zM7 10.2c-1.22 0-2.2-.98-2.2-2.2 0-1.22.98-2.2 2.2-2.2 1.22 0 2.2.98 2.2 2.2 0 1.22-.98 2.2-2.2 2.2z"/></svg>
+  </div>
+
+  
+<div class="AvatarStack flex-self-start ">
+  <div class="AvatarStack-body tooltipped tooltipped-se tooltipped-align-left-1"
+       aria-label="OndraM">
+
+        <a href="/OndraM" data-skip-pjax="true" class="avatar">
+          <img src="https://avatars3.githubusercontent.com/u/793041?s=40&amp;v=4" width="20" height="20" alt="@OndraM">
+        </a>
+  </div>
+</div>
+
+
+
+  <div class="commit-message pr-1">
+    <code>
+      <a title="Setup ECS according to currently used ruleset.xml for PHP_CodeSniffer" data-pjax="true" class="message" href="/lmc-eu/php-coding-standard/pull/2/commits/03dbdbe91ed0bc643425eda5d67cfb9861ccc699">Setup ECS according to currently used ruleset.xml for PHP_CodeSniffer</a>
+    </code>
+
+
+  </div>
+
+  <div class="commit-sig-status text-right pr-1">
+    
+    <div class="d-inline-block dropdown dropdown-signed-commit js-menu-container">
+        <button type="button" class="signed-commit-badge signed-commit-badge-small verified js-menu-target"
+          aria-label="View commit signature"
+          aria-haspopup="true" aria-expanded="false">
+            Verified
+        </button>
+        <div class="dropdown-menu-content anim-scale-in js-menu-content">
+          <div class="dropdown-menu dropdown-menu-w py-0 text-gray-dark text-left">
+            <div class="signed-commit-header TableObject">
+              <div class="TableObject-item">
+                <svg height="32" class="octicon octicon-verified mr-2" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M15.67 7.06l-1.08-1.34c-.17-.22-.28-.48-.31-.77l-.19-1.7a1.51 1.51 0 0 0-1.33-1.33l-1.7-.19c-.3-.03-.56-.16-.78-.33L8.94.32c-.55-.44-1.33-.44-1.88 0L5.72 1.4c-.22.17-.48.28-.77.31l-1.7.19c-.7.08-1.25.63-1.33 1.33l-.19 1.7c-.03.3-.16.56-.33.78L.32 7.05c-.44.55-.44 1.33 0 1.88l1.08 1.34c.17.22.28.48.31.77l.19 1.7c.08.7.63 1.25 1.33 1.33l1.7.19c.3.03.56.16.78.33l1.34 1.08c.55.44 1.33.44 1.88 0l1.34-1.08c.22-.17.48-.28.77-.31l1.7-.19c.7-.08 1.25-.63 1.33-1.33l.19-1.7c.03-.3.16-.56.33-.78l1.08-1.34c.44-.55.44-1.33 0-1.88zM6.5 12L3 8.5 4.5 7l2 2 5-5L13 5.55 6.5 12z"/></svg>
+              </div>
+              <div class="TableObject-item--primary">
+                    This commit was signed with a <strong class="signed-commit-verified-label">verified signature</strong>.
+              </div>
+            </div>
+
+              <div class="signed-commit-signer TableObject">
+                <a class="TableObject-item" aria-label="OndraM" href="/OndraM">
+                  <img src="https://avatars0.githubusercontent.com/u/793041?s=64&amp;v=4" width="32" height="32" alt="@OndraM" class="avatar mr-2">
+                </a>
+                <span class="signed-commit-signer-name TableObject-item--primary">
+                  <a class="signer" href="/OndraM">OndraM</a>
+                  Ondřej Machulda
+                </span>
+              </div>
+
+            <div class="signed-commit-footer">
+                <span class="d-block">GPG key ID: <span class="text-gray">2291FBF793FDAAA0</span></span>
+              <a href="https://help.github.com/articles/signing-commits-with-gpg/">Learn about signing commits</a>
+            </div>
+          </div>
+        </div>
+    </div>
+
+  </div>
+
+  <div class="commit-ci-status pr-1">
+  </div>
+
+  <div class="commit-meta text-right">
+    <code>
+      <a href="/lmc-eu/php-coding-standard/pull/2/commits/03dbdbe91ed0bc643425eda5d67cfb9861ccc699" class="commit-id">03dbdbe</a>
+    </code>
+  </div>
+</div>
+
+
+        
+
+<div class="commit js-details-container Details js-socket-channel js-updatable-content no-wrap d-flex mb-2"
+     data-channel="repo:125386379:commit:d4e1bf36729d2ea74a52c809b9e83f230c2a4d31"
+     data-url="/_render_node/MDE3OlB1bGxSZXF1ZXN0Q29tbWl0MTc1Njc1Nzc1OmQ0ZTFiZjM2NzI5ZDJlYTc0YTUyYzgwOWI5ZTgzZjIzMGMyYTRkMzE=/commit/pull_condensed">
+
+  <div class="commit-icon mr-3">
+    <svg class="octicon octicon-git-commit" viewBox="0 0 14 16" version="1.1" width="14" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10.86 7c-.45-1.72-2-3-3.86-3-1.86 0-3.41 1.28-3.86 3H0v2h3.14c.45 1.72 2 3 3.86 3 1.86 0 3.41-1.28 3.86-3H14V7h-3.14zM7 10.2c-1.22 0-2.2-.98-2.2-2.2 0-1.22.98-2.2 2.2-2.2 1.22 0 2.2.98 2.2 2.2 0 1.22-.98 2.2-2.2 2.2z"/></svg>
+  </div>
+
+  
+<div class="AvatarStack flex-self-start ">
+  <div class="AvatarStack-body tooltipped tooltipped-se tooltipped-align-left-1"
+       aria-label="OndraM">
+
+        <a href="/OndraM" data-skip-pjax="true" class="avatar">
+          <img src="https://avatars3.githubusercontent.com/u/793041?s=40&amp;v=4" width="20" height="20" alt="@OndraM">
+        </a>
+  </div>
+</div>
+
+
+
+  <div class="commit-message pr-1">
+    <code>
+      <a title="Setup ECS according to currently used rules for php-cs-fixer" data-pjax="true" class="message" href="/lmc-eu/php-coding-standard/pull/2/commits/d4e1bf36729d2ea74a52c809b9e83f230c2a4d31">Setup ECS according to currently used rules for php-cs-fixer</a>
+    </code>
+
+
+  </div>
+
+  <div class="commit-sig-status text-right pr-1">
+    
+    <div class="d-inline-block dropdown dropdown-signed-commit js-menu-container">
+        <button type="button" class="signed-commit-badge signed-commit-badge-small verified js-menu-target"
+          aria-label="View commit signature"
+          aria-haspopup="true" aria-expanded="false">
+            Verified
+        </button>
+        <div class="dropdown-menu-content anim-scale-in js-menu-content">
+          <div class="dropdown-menu dropdown-menu-w py-0 text-gray-dark text-left">
+            <div class="signed-commit-header TableObject">
+              <div class="TableObject-item">
+                <svg height="32" class="octicon octicon-verified mr-2" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M15.67 7.06l-1.08-1.34c-.17-.22-.28-.48-.31-.77l-.19-1.7a1.51 1.51 0 0 0-1.33-1.33l-1.7-.19c-.3-.03-.56-.16-.78-.33L8.94.32c-.55-.44-1.33-.44-1.88 0L5.72 1.4c-.22.17-.48.28-.77.31l-1.7.19c-.7.08-1.25.63-1.33 1.33l-.19 1.7c-.03.3-.16.56-.33.78L.32 7.05c-.44.55-.44 1.33 0 1.88l1.08 1.34c.17.22.28.48.31.77l.19 1.7c.08.7.63 1.25 1.33 1.33l1.7.19c.3.03.56.16.78.33l1.34 1.08c.55.44 1.33.44 1.88 0l1.34-1.08c.22-.17.48-.28.77-.31l1.7-.19c.7-.08 1.25-.63 1.33-1.33l.19-1.7c.03-.3.16-.56.33-.78l1.08-1.34c.44-.55.44-1.33 0-1.88zM6.5 12L3 8.5 4.5 7l2 2 5-5L13 5.55 6.5 12z"/></svg>
+              </div>
+              <div class="TableObject-item--primary">
+                    This commit was signed with a <strong class="signed-commit-verified-label">verified signature</strong>.
+              </div>
+            </div>
+
+              <div class="signed-commit-signer TableObject">
+                <a class="TableObject-item" aria-label="OndraM" href="/OndraM">
+                  <img src="https://avatars0.githubusercontent.com/u/793041?s=64&amp;v=4" width="32" height="32" alt="@OndraM" class="avatar mr-2">
+                </a>
+                <span class="signed-commit-signer-name TableObject-item--primary">
+                  <a class="signer" href="/OndraM">OndraM</a>
+                  Ondřej Machulda
+                </span>
+              </div>
+
+            <div class="signed-commit-footer">
+                <span class="d-block">GPG key ID: <span class="text-gray">2291FBF793FDAAA0</span></span>
+              <a href="https://help.github.com/articles/signing-commits-with-gpg/">Learn about signing commits</a>
+            </div>
+          </div>
+        </div>
+    </div>
+
+  </div>
+
+  <div class="commit-ci-status pr-1">
+  </div>
+
+  <div class="commit-meta text-right">
+    <code>
+      <a href="/lmc-eu/php-coding-standard/pull/2/commits/d4e1bf36729d2ea74a52c809b9e83f230c2a4d31" class="commit-id">d4e1bf3</a>
+    </code>
+  </div>
+</div>
+
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+
+
+
+
+
+
+<!-- Rendered timeline since 2018-03-16 18:25:14 -->
+<div id="partial-timeline-marker"
+      class="js-timeline-marker js-socket-channel js-updatable-content"
+      data-channel="pull_request:175675775"
+      data-url="/lmc-eu/php-coding-standard/pull/2/show_partial?partial=pull_requests%2Ftimeline_marker&amp;since=1521249914"
+      data-last-modified="Sat, 17 Mar 2018 01:25:14 GMT">
+
+    <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="d-none js-timeline-marker-form" data-remote="true" action="/lmc-eu/php-coding-standard/notifications/mark?ids=314209008" accept-charset="UTF-8" method="post"><input name="utf8" type="hidden" value="&#x2713;" /><input type="hidden" name="authenticity_token" value="eRj/1a+h2D6uNr67c2GIIPQOCuXnyB+7S+1achDD5f702PJiYapmlwflB7SLAVO7vq+INHjNdKKhiJA+egeO+Q==" />
+</form></div>
+
+
+  </div>
+
+  <div class="discussion-timeline-actions">
+          <div class="flash flash-warn mt-3">
+    <a rel="nofollow" class="btn btn-primary" href="/join?source=comment-repo">Sign up for free</a>
+    <strong>to join this conversation on GitHub</strong>.
+    Already have an account?
+    <a rel="nofollow" href="/login?return_to=https%3A%2F%2Fgithub.com%2Flmc-eu%2Fphp-coding-standard%2Fpull%2F2">Sign in to comment</a>
+</div>
+
+
+  </div>
+</div>
+
+    </div>
+  </div>
+
+  </div>
+
+  </div>
+  <div class="modal-backdrop js-touch-events"></div>
+</div>
+
+    </div>
+  </div>
+
+  </div>
+
+      
+<div class="footer container-lg px-3" role="contentinfo">
+  <div class="position-relative d-flex flex-justify-between py-6 mt-6 f6 text-gray border-top border-gray-light ">
+    <ul class="list-style-none d-flex flex-wrap ">
+      <li class="mr-3">&copy; 2018 <span title="0.75126s from unicorn-1238011384-wzcbc">GitHub</span>, Inc.</li>
+        <li class="mr-3"><a href="https://help.github.com/articles/github-terms-of-service/" data-ga-click="Footer, go to terms, text:terms">Terms</a></li>
+        <li class="mr-3"><a href="https://github.com/site/privacy" data-ga-click="Footer, go to privacy, text:privacy">Privacy</a></li>
+        <li class="mr-3"><a href="https://help.github.com/articles/github-security/" data-ga-click="Footer, go to security, text:security">Security</a></li>
+        <li class="mr-3"><a href="https://status.github.com/" data-ga-click="Footer, go to status, text:status">Status</a></li>
+        <li><a data-ga-click="Footer, go to help, text:help" href="https://help.github.com">Help</a></li>
+    </ul>
+
+    <a aria-label="Homepage" title="GitHub" class="footer-octicon" href="https://github.com">
+      <svg height="24" class="octicon octicon-mark-github" viewBox="0 0 16 16" version="1.1" width="24" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+</a>
+    <ul class="list-style-none d-flex flex-wrap ">
+        <li class="mr-3"><a data-ga-click="Footer, go to contact, text:contact" href="https://github.com/contact">Contact GitHub</a></li>
+      <li class="mr-3"><a href="https://developer.github.com" data-ga-click="Footer, go to api, text:api">API</a></li>
+      <li class="mr-3"><a href="https://training.github.com" data-ga-click="Footer, go to training, text:training">Training</a></li>
+      <li class="mr-3"><a href="https://shop.github.com" data-ga-click="Footer, go to shop, text:shop">Shop</a></li>
+        <li class="mr-3"><a data-ga-click="Footer, go to blog, text:blog" href="https://github.com/blog">Blog</a></li>
+        <li><a data-ga-click="Footer, go to about, text:about" href="https://github.com/about">About</a></li>
+
+    </ul>
+  </div>
+</div>
+
+
+
+  <div id="ajax-error-message" class="ajax-error-message flash flash-error">
+    <svg class="octicon octicon-alert" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.865 1.52c-.18-.31-.51-.5-.87-.5s-.69.19-.87.5L.275 13.5c-.18.31-.18.69 0 1 .19.31.52.5.87.5h13.7c.36 0 .69-.19.86-.5.17-.31.18-.69.01-1L8.865 1.52zM8.995 13h-2v-2h2v2zm0-3h-2V6h2v4z"/></svg>
+    <button type="button" class="flash-close js-ajax-error-dismiss" aria-label="Dismiss error">
+      <svg class="octicon octicon-x" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48z"/></svg>
+    </button>
+    You can't perform that action at this time.
+  </div>
+
+
+    <script crossorigin="anonymous" type="application/javascript" src="https://assets-cdn.github.com/assets/compat-af4f19572e1d43f69746f70aa5f01dc9.js"></script>
+    <script crossorigin="anonymous" type="application/javascript" src="https://assets-cdn.github.com/assets/frameworks-4864edf87c8541242ad2c01d7a701855.js"></script>
+    
+    <script crossorigin="anonymous" async="async" type="application/javascript" src="https://assets-cdn.github.com/assets/github-503a07c8023685e34e2f06ee655993c7.js"></script>
+    
+    
+    
+    
+  <div class="js-stale-session-flash stale-session-flash flash flash-warn flash-banner d-none">
+    <svg class="octicon octicon-alert" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8.865 1.52c-.18-.31-.51-.5-.87-.5s-.69.19-.87.5L.275 13.5c-.18.31-.18.69 0 1 .19.31.52.5.87.5h13.7c.36 0 .69-.19.86-.5.17-.31.18-.69.01-1L8.865 1.52zM8.995 13h-2v-2h2v2zm0-3h-2V6h2v4z"/></svg>
+    <span class="signed-in-tab-flash">You signed in with another tab or window. <a href="">Reload</a> to refresh your session.</span>
+    <span class="signed-out-tab-flash">You signed out in another tab or window. <a href="">Reload</a> to refresh your session.</span>
+  </div>
+  <div class="facebox" id="facebox" style="display:none;">
+  <div class="facebox-popup">
+    <div class="facebox-content" role="dialog" aria-labelledby="facebox-header" aria-describedby="facebox-description">
+    </div>
+    <button type="button" class="facebox-close js-facebox-close" aria-label="Close modal">
+      <svg class="octicon octicon-x" viewBox="0 0 12 16" version="1.1" width="12" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48z"/></svg>
+    </button>
+  </div>
+</div>
+
+  
+
+  </body>
+</html>
+

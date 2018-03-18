@@ -1,0 +1,49 @@
+From 49ea0a42ac585253e9ce8f77b756ec315d02cdfb Mon Sep 17 00:00:00 2001
+From: TomasVotruba <tomas.vot@gmail.com>
+Date: Sat, 10 Mar 2018 16:52:22 +0100
+Subject: [PATCH] add YamlFileLoader test
+
+---
+ tests/Yaml/CheckerTolerantYamlFileLoaderSource/config.yml |  3 +++
+ tests/Yaml/CheckerTolerantYamlFileLoaderTest.php          | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)
+ create mode 100644 tests/Yaml/CheckerTolerantYamlFileLoaderSource/config.yml
+ create mode 100644 tests/Yaml/CheckerTolerantYamlFileLoaderTest.php
+
+diff --git a/tests/Yaml/CheckerTolerantYamlFileLoaderSource/config.yml b/tests/Yaml/CheckerTolerantYamlFileLoaderSource/config.yml
+new file mode 100644
+index 0000000..4f18e0c
+--- /dev/null
++++ b/tests/Yaml/CheckerTolerantYamlFileLoaderSource/config.yml
+@@ -0,0 +1,3 @@
++services:
++    PhpCsFixer\Fixer\ArrayNotation\ArraySyntaxFixer:
++        syntax: 'short'
+diff --git a/tests/Yaml/CheckerTolerantYamlFileLoaderTest.php b/tests/Yaml/CheckerTolerantYamlFileLoaderTest.php
+new file mode 100644
+index 0000000..d735a24
+--- /dev/null
++++ b/tests/Yaml/CheckerTolerantYamlFileLoaderTest.php
+@@ -0,0 +1,19 @@
++<?php declare(strict_types=1);
++
++namespace Symplify\EasyCodingStandard\Tests\Yaml;
++
++use PHPUnit\Framework\TestCase;
++use Symplify\EasyCodingStandard\DependencyInjection\ContainerFactory;
++use Symplify\EasyCodingStandard\FixerRunner\Application\FixerFileProcessor;
++
++final class CheckerTolerantYamlFileLoaderTest extends TestCase
++{
++    public function test(): void
++    {
++        $container = (new ContainerFactory())->createWithConfig(__DIR__ . '/CheckerTolerantYamlFileLoaderSource/config.yml');
++
++        /** @var FixerFileProcessor $fixerFileProcessor */
++        $fixerFileProcessor = $container->get(FixerFileProcessor::class);
++        $this->assertCount(1, $fixerFileProcessor->getCheckers());
++    }
++}
+--
+Working Copy 3.3.0
+
